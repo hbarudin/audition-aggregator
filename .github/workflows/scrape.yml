@@ -32,9 +32,9 @@ jobs:
           cache: 'npm'       # caches node_modules between runs to speed things up
 
       - name: Install dependencies
-        run: npm ci
-        # "run" executes a shell command. npm ci is like npm install
-        # but faster and stricter — designed for CI environments.
+        run: npm install
+        # Using npm install instead of npm ci to avoid lock file
+        # platform mismatches between macOS (dev) and Ubuntu (CI).
 
       - name: Run scraper
         run: npx tsx scraper/index.ts
