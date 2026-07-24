@@ -2,7 +2,12 @@ const TIMEOUT_MS = 10_000;
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 const MAX_TEXT_LENGTH = 8_000;
 
-export async function fetchPage(url: string): Promise<string | null> {
+export interface FetchResult {
+  text: string | null;
+  status: number; // HTTP status, or 0 for network/timeout errors
+}
+
+export async function fetchPage(url: string): Promise<FetchResult> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -16,18 +21,18 @@ export async function fetchPage(url: string): Promise<string | null> {
 
     if (!response.ok) {
       console.log(`  → HTTP ${response.status}`);
-      return null;
+      return { text: null, status: response.status };
     }
 
     const html = await response.text();
-    return extractText(html);
+    return { text: extractText(html), status: response.status };
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
       console.log(`  → Timeout after ${TIMEOUT_MS / 1000}s`);
     } else {
       console.log(`  → Fetch error: ${err}`);
     }
-    return null;
+    return { text: null, status: 0 };
   }
 }
 

@@ -50,11 +50,11 @@ export default function AuditionCard({ audition }: { audition: Audition }) {
         {audition.is_paid === false && (
           <Badge color="gray">Unpaid</Badge>
         )}
-        {audition.is_union === false && (
-          <Badge color="blue">Non-union</Badge>
+        {audition.non_union_ok === true && (
+          <Badge color="blue">Non-union OK</Badge>
         )}
-        {audition.is_union === true && (
-          <Badge color="blue">Union</Badge>
+        {audition.non_union_ok === false && (
+          <Badge color="gray">Union only</Badge>
         )}
         {audition.housing === 'yes' && (
           <Badge color="purple">Housing offered</Badge>

@@ -15,9 +15,11 @@ export interface Audition {
   theater?: Theater;
   show_name: string | null;
   audition_dates: string | null;
+  audition_date_start: string | null;
+  audition_date_end: string | null;
   performance_dates: string | null;
   is_paid: boolean | null;
-  is_union: boolean | null;
+  non_union_ok: boolean | null;
   housing: 'yes' | 'no' | 'unknown';
   source_url: string | null;
   scraped_at: string | null;

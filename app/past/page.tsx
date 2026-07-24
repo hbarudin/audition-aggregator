@@ -5,7 +5,7 @@ import SearchableAuditionTable from '@/components/SearchableAuditionTable';
 
 export const revalidate = 3600;
 
-export default async function Home({
+export default async function PastAuditions({
   searchParams,
 }: {
   searchParams: Promise<{ sort?: string; dir?: string }>;
@@ -18,7 +18,7 @@ export default async function Home({
   let query = supabase
     .from('auditions')
     .select('*, theater:theaters(name, city, state)')
-    .eq('is_expired', false);
+    .eq('is_expired', true);
 
   if (sort === 'theater_name') {
     query = query.order('name', { referencedTable: 'theaters', ascending: direction === 'asc', nullsFirst: false });
@@ -34,20 +34,12 @@ export default async function Home({
     <main className="max-w-6xl mx-auto px-4 py-10">
       <header className="mb-8 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Audition Aggregator</h1>
-          <p className="text-gray-500 text-sm mt-1">Non-union theater auditions, updated daily</p>
+          <h1 className="text-2xl font-bold tracking-tight">Past Auditions</h1>
+          <p className="text-gray-500 text-sm mt-1">Auditions whose dates have passed</p>
         </div>
-        <div className="flex items-center gap-4 mt-1">
-          <Link href="/add-theater" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
-            + Add theater
-          </Link>
-          <Link href="/theaters" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
-            All theaters
-          </Link>
-          <Link href="/past" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
-            Past auditions →
-          </Link>
-        </div>
+        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors mt-1">
+          ← Current auditions
+        </Link>
       </header>
 
       {error && (
@@ -56,8 +48,7 @@ export default async function Home({
 
       {!error && (!auditions || auditions.length === 0) && (
         <div className="mt-16 text-center text-gray-400">
-          <p className="text-lg font-medium">No auditions yet</p>
-          <p className="text-sm mt-2">The scraper will populate this list once it runs.</p>
+          <p className="text-lg font-medium">No past auditions</p>
         </div>
       )}
 
@@ -66,7 +57,7 @@ export default async function Home({
           auditions={auditions as Audition[]}
           sort={sort}
           direction={direction}
-          basePath="/"
+          basePath="/past"
         />
       )}
     </main>
