@@ -28,14 +28,24 @@ export default async function Home({
     query = query.order(sort, { ascending: direction === 'asc', nullsFirst: false });
   }
 
-  const { data: auditions, error } = await query;
+  const [{ data: auditions, error }, { data: lastScrape }] = await Promise.all([
+    query,
+    supabase.from('auditions').select('scraped_at').order('scraped_at', { ascending: false }).limit(1).single(),
+  ]);
+
+  const lastUpdated = lastScrape?.scraped_at
+    ? new Date(lastScrape.scraped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-10">
       <header className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Audition Aggregator</h1>
-          <p className="text-gray-500 text-sm mt-1">Non-union theater auditions, updated daily</p>
+          <p className="text-gray-500 text-sm mt-1">
+            Non-union theater auditions, updated daily
+            {lastUpdated && <span className="text-gray-400"> · Last scraped {lastUpdated}</span>}
+          </p>
         </div>
         <div className="flex items-center gap-4 mt-1">
           <Link href="/add-theater" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
