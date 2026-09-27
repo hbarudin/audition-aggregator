@@ -1,5 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+// A ceiling, not a reservation, so headroom is free. It needs to be generous
+// because the failure is all-or-nothing rather than partial: a response cut
+// mid-object leaves unbalanced JSON, JSON.parse throws, and the catch below
+// discards every listing the page had.
+const MAX_TOKENS = 8192;
+
 // Created lazily so the API key is read after dotenv has loaded.
 let _client: Anthropic | null = null;
 function getClient() {
@@ -28,7 +34,7 @@ export async function parseAuditions(
 
   const response = await getClient().messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
+    max_tokens: MAX_TOKENS,
     // Instructions are in the system prompt, scraped content is in the user turn.
     // This separation limits prompt injection from malicious page content.
     system: `You are a data extraction assistant for a theater audition aggregator.
@@ -75,6 +81,10 @@ ${pageText}
       },
     ],
   });
+
+  if (response.stop_reason === 'max_tokens') {
+    console.log(`  → Response hit the ${MAX_TOKENS}-token ceiling; truncated JSON will drop every listing on this page`);
+  }
 
   const raw = response.content[0].type === 'text' ? response.content[0].text : '';
 
