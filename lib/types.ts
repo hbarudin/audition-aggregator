@@ -18,6 +18,7 @@ export interface Audition {
   audition_date_start: string | null;
   audition_date_end: string | null;
   performance_dates: string | null;
+  performance_date_end: string | null;
   is_paid: boolean | null;
   non_union_ok: boolean | null;
   housing: 'yes' | 'no' | 'unknown';
