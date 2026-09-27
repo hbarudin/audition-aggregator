@@ -22,7 +22,7 @@ export default async function TheatersPage({
   if (error) {
     return (
       <main className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-red-600 text-sm">Could not load theaters: {error.message}</p>
+        <p className="text-destructive text-sm">Could not load theaters: {error.message}</p>
       </main>
     );
   }
@@ -34,11 +34,11 @@ export default async function TheatersPage({
       <header className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">All theaters</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             {theaters.length} theaters across {stateCount} states
           </p>
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors mt-1">
+        <Link href="/" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors mt-1">
           ← Back
         </Link>
       </header>

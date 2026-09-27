@@ -20,12 +20,12 @@ interface Props {
 export default function AuditionTable({ auditions, sort, direction, basePath, query = '' }: Props) {
   return (
     <>
-    <p className="mb-2 text-xs text-gray-400 flex items-center gap-3">
-      <span><span className="text-green-600 font-semibold">✓</span> confirmed yes</span>
-      <span><span className="text-gray-400">✕</span> confirmed no</span>
+    <p className="mb-2 text-xs text-muted-foreground/80 flex items-center gap-3">
+      <span><span className="text-success font-semibold">✓</span> confirmed yes</span>
+      <span><span className="text-muted-foreground/80">✕</span> confirmed no</span>
       <span>blank = not listed in posting</span>
     </p>
-    <div className="rounded-lg border border-gray-200 overflow-hidden">
+    <div className="rounded-lg border border-border overflow-hidden">
       <Table className="table-fixed w-full">
         <colgroup>
           <col className="w-[24%]" />
@@ -35,8 +35,8 @@ export default function AuditionTable({ auditions, sort, direction, basePath, qu
           <col className="w-[10%]" />
           <col className="w-[10%]" />
         </colgroup>
-        <TableHeader className="bg-gray-50">
-          <TableRow className="border-b border-gray-200 hover:bg-gray-50">
+        <TableHeader className="bg-muted">
+          <TableRow className="border-b border-border hover:bg-muted">
             <SortableHead column="theater_name" sort={sort} direction={direction} basePath={basePath}>
               Theater
             </SortableHead>
@@ -61,16 +61,16 @@ export default function AuditionTable({ auditions, sort, direction, basePath, qu
           {auditions.map((a) => (
             <TableRow
               key={a.id}
-              className="odd:bg-white even:bg-gray-50 hover:bg-blue-50 border-b border-gray-100 transition-colors"
+              className="odd:bg-background even:bg-muted/60 hover:bg-link/10 border-b border-border/60 transition-colors"
             >
               <TableCell className="px-4 py-3 whitespace-normal">
-                <p className="font-medium text-gray-900 truncate">
+                <p className="font-medium text-foreground truncate">
                   {a.source_url ? (
                     <a
                       href={a.source_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="hover:text-blue-600 hover:underline transition-colors"
+                      className="hover:text-link hover:underline transition-colors"
                     >
                       <Highlight text={a.theater?.name ?? ''} query={query} />
                     </a>
@@ -78,17 +78,17 @@ export default function AuditionTable({ auditions, sort, direction, basePath, qu
                     <Highlight text={a.theater?.name ?? ''} query={query} />
                   )}
                 </p>
-                <p className="text-xs text-gray-400">{a.theater?.city}, {a.theater?.state}</p>
+                <p className="text-xs text-muted-foreground/80">{a.theater?.city}, {a.theater?.state}</p>
               </TableCell>
-              <TableCell className="px-4 py-3 text-gray-700 whitespace-normal">
+              <TableCell className="px-4 py-3 text-foreground/75 whitespace-normal">
                 <span className="line-clamp-2">
                   {a.show_name
                     ? <Highlight text={a.show_name} query={query} />
-                    : <span className="text-gray-300">—</span>}
+                    : <span className="text-muted-foreground/50">—</span>}
                 </span>
               </TableCell>
-              <TableCell className="px-4 py-3 text-gray-700 whitespace-normal">
-                {a.audition_dates ?? <span className="text-gray-300">—</span>}
+              <TableCell className="px-4 py-3 text-foreground/75 whitespace-normal">
+                {a.audition_dates ?? <span className="text-muted-foreground/50">—</span>}
               </TableCell>
               <TableCell className="px-4 py-3 text-center">
                 <Flag value={a.is_paid} />
@@ -111,7 +111,7 @@ export default function AuditionTable({ auditions, sort, direction, basePath, qu
 function StaticHead({ children, center }: { children: React.ReactNode; center?: boolean }) {
   return (
     <TableHead
-      className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${center ? 'text-center' : ''}`}
+      className={`px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide ${center ? 'text-center' : ''}`}
     >
       {children}
     </TableHead>
@@ -143,7 +143,7 @@ function SortableHead({
         href={href}
         className={`flex items-center gap-1 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-colors ${
           center ? 'justify-center' : ''
-        } ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+        } ${isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/75'}`}
       >
         {children}
         <span className="text-[10px]">
@@ -155,14 +155,14 @@ function SortableHead({
 }
 
 function Flag({ value }: { value: boolean | null }) {
-  if (value === true) return <span className="text-green-600 font-semibold">✓</span>;
-  if (value === false) return <span className="text-gray-400">✕</span>;
+  if (value === true) return <span className="text-success font-semibold">✓</span>;
+  if (value === false) return <span className="text-muted-foreground/80">✕</span>;
   return null;
 }
 
 function HousingFlag({ value }: { value: string }) {
-  if (value === 'yes') return <span className="text-green-600 font-semibold">✓</span>;
-  if (value === 'no') return <span className="text-gray-400">✕</span>;
+  if (value === 'yes') return <span className="text-success font-semibold">✓</span>;
+  if (value === 'no') return <span className="text-muted-foreground/80">✕</span>;
   return null;
 }
 
@@ -175,7 +175,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   while (idx !== -1) {
     if (idx > last) parts.push(text.slice(last, idx));
     parts.push(
-      <mark key={idx} className="bg-yellow-200 text-inherit rounded-sm">
+      <mark key={idx} className="bg-highlight text-highlight-foreground rounded-sm">
         {text.slice(idx, idx + needle.length)}
       </mark>
     );

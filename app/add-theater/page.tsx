@@ -11,7 +11,7 @@ const STATES = [
   'VA','VT','WA','WI','WV','WY',
 ];
 
-const inputClass = 'w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+const inputClass = 'w-full rounded-md border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent';
 
 export default function AddTheaterPage() {
   const [formState, action, pending] = useActionState(addTheater, null);
@@ -51,24 +51,24 @@ export default function AddTheaterPage() {
       <header className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Add theater</h1>
-          <p className="text-gray-500 text-sm mt-1">Add a new theater to the scraper</p>
+          <p className="text-muted-foreground text-sm mt-1">Add a new theater to the scraper</p>
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors mt-1">
+        <Link href="/" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors mt-1">
           ← Back
         </Link>
       </header>
 
       {formState && 'success' in formState && formState.success && (
-        <div className="mb-6 rounded-md border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div className="mb-6 rounded-md border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
           <span className="font-medium">{formState.theaterName}</span> was added successfully.{' '}
-          <Link href="/" className="underline hover:text-green-900">Go back to the home page</Link>
+          <Link href="/" className="underline hover:text-success">Go back to the home page</Link>
         </div>
       )}
 
       <form key={formKey} action={action} className="flex flex-col gap-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="name">
-            Theater name <span className="text-red-400">*</span>
+          <label className="block text-sm font-medium text-foreground/75 mb-1.5" htmlFor="name">
+            Theater name <span className="text-destructive/70">*</span>
           </label>
           <input
             id="name"
@@ -85,14 +85,14 @@ export default function AddTheaterPage() {
 
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="city">
-              City <span className="text-red-400">*</span>
+            <label className="block text-sm font-medium text-foreground/75 mb-1.5" htmlFor="city">
+              City <span className="text-destructive/70">*</span>
             </label>
             <input id="city" name="city" type="text" required className={inputClass} placeholder="e.g. Chicago" />
           </div>
           <div className="w-28">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="state">
-              State <span className="text-red-400">*</span>
+            <label className="block text-sm font-medium text-foreground/75 mb-1.5" htmlFor="state">
+              State <span className="text-destructive/70">*</span>
             </label>
             <select id="state" name="state" required className={inputClass}>
               <option value="">—</option>
@@ -102,7 +102,7 @@ export default function AddTheaterPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="audition_page_url">
+          <label className="block text-sm font-medium text-foreground/75 mb-1.5" htmlFor="audition_page_url">
             Audition page URL
           </label>
           <input
@@ -118,33 +118,33 @@ export default function AddTheaterPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="notes">
+          <label className="block text-sm font-medium text-foreground/75 mb-1.5" htmlFor="notes">
             Notes
           </label>
           <textarea id="notes" name="notes" rows={3} className={inputClass} placeholder="e.g. Cloudflare protected, check back manually" />
         </div>
 
         {checking && (
-          <p className="text-sm text-gray-400">Checking for duplicates…</p>
+          <p className="text-sm text-muted-foreground/80">Checking for duplicates…</p>
         )}
 
         {!checking && duplicates.length > 0 && (
-          <div className="rounded-md border border-yellow-300 bg-yellow-50 p-4">
-            <p className="text-sm font-medium text-yellow-800 mb-2">
+          <div className="rounded-md border border-warning-border bg-warning-muted p-4">
+            <p className="text-sm font-medium text-warning mb-2">
               Similar theaters already exist — double-check before saving:
             </p>
-            <ul className="text-sm text-yellow-700 space-y-1 mb-3">
+            <ul className="text-sm text-warning space-y-1 mb-3">
               {duplicates.map((t) => (
                 <li key={t.id}>
                   <span className="font-medium">{t.name}</span>
                   {' — '}{t.city}, {t.state}
                   {t.audition_page_url && (
-                    <> · <a href={t.audition_page_url} target="_blank" rel="noreferrer" className="underline hover:text-yellow-900">{t.audition_page_url}</a></>
+                    <> · <a href={t.audition_page_url} target="_blank" rel="noreferrer" className="underline hover:text-warning">{t.audition_page_url}</a></>
                   )}
                 </li>
               ))}
             </ul>
-            <label className="flex items-center gap-2 text-sm text-yellow-800 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-warning cursor-pointer">
               <input
                 type="checkbox"
                 checked={confirmed}
@@ -156,13 +156,13 @@ export default function AddTheaterPage() {
         )}
 
         {'error' in (formState ?? {}) && (
-          <p className="text-sm text-red-600">{(formState as { error: string }).error}</p>
+          <p className="text-sm text-destructive">{(formState as { error: string }).error}</p>
         )}
 
         <button
           type="submit"
           disabled={pending || blockSubmit}
-          className="self-start rounded-md bg-gray-900 text-white text-sm font-medium px-4 py-2 hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="self-start rounded-md bg-primary text-primary-foreground text-sm font-medium px-4 py-2 hover:bg-primary/85 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {pending ? 'Saving…' : 'Add theater'}
         </button>

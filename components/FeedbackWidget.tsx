@@ -17,12 +17,12 @@ export default function FeedbackWidget() {
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
       {open && (
-        <div className="w-72 rounded-lg border border-gray-200 bg-white shadow-lg p-4 flex flex-col gap-3">
+        <div className="w-72 rounded-lg border border-border bg-card shadow-lg p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-800">Send feedback</p>
+            <p className="text-sm font-medium text-foreground">Send feedback</p>
             <button
               onClick={() => setOpen(false)}
-              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              className="text-muted-foreground/80 hover:text-muted-foreground text-lg leading-none"
               aria-label="Close"
             >
               ×
@@ -30,7 +30,7 @@ export default function FeedbackWidget() {
           </div>
 
           {state?.success ? (
-            <p className="text-sm text-green-600">Thanks! We&rsquo;ll look into it.</p>
+            <p className="text-sm text-success">Thanks! We&rsquo;ll look into it.</p>
           ) : (
             <form action={action} className="flex flex-col gap-3">
               <textarea
@@ -38,15 +38,15 @@ export default function FeedbackWidget() {
                 rows={4}
                 required
                 placeholder="e.g. Atlantic Theater Company only holds union auditions"
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
               />
               {state?.error && (
-                <p className="text-xs text-red-600">{state.error}</p>
+                <p className="text-xs text-destructive">{state.error}</p>
               )}
               <button
                 type="submit"
                 disabled={pending}
-                className="rounded-md bg-gray-900 text-white text-sm font-medium px-3 py-1.5 hover:bg-gray-700 transition-colors disabled:opacity-40"
+                className="rounded-md bg-primary text-primary-foreground text-sm font-medium px-3 py-1.5 hover:bg-primary/85 transition-colors disabled:opacity-40"
               >
                 {pending ? 'Sending…' : 'Send'}
               </button>
@@ -57,7 +57,7 @@ export default function FeedbackWidget() {
 
       <button
         onClick={() => setOpen((o) => !o)}
-        className="rounded-full bg-gray-900 text-white text-xs font-medium px-3 py-1.5 hover:bg-gray-700 transition-colors shadow-md"
+        className="rounded-full bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 hover:bg-primary/85 transition-colors shadow-md"
       >
         Feedback
       </button>

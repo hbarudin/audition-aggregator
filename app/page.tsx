@@ -43,30 +43,30 @@ export default async function Home({
       <header className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Audition Aggregator</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             Non-union theater auditions, updated daily
-            {lastUpdated && <span className="text-gray-400"> · Last scraped {lastUpdated}</span>}
+            {lastUpdated && <span className="text-muted-foreground/80"> · Last scraped {lastUpdated}</span>}
           </p>
         </div>
         <div className="flex items-center gap-4 mt-1">
-          <Link href="/add-theater" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          <Link href="/add-theater" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
             + Add theater
           </Link>
-          <Link href="/theaters" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          <Link href="/theaters" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
             All theaters
           </Link>
-          <Link href="/past" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          <Link href="/past" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
             Past auditions →
           </Link>
         </div>
       </header>
 
       {error && (
-        <p className="mt-8 text-red-600 text-sm">Could not load auditions: {error.message}</p>
+        <p className="mt-8 text-destructive text-sm">Could not load auditions: {error.message}</p>
       )}
 
       {!error && (!auditions || auditions.length === 0) && (
-        <div className="mt-16 text-center text-gray-400">
+        <div className="mt-16 text-center text-muted-foreground/80">
           <p className="text-lg font-medium">No auditions yet</p>
           <p className="text-sm mt-2">The scraper will populate this list once it runs.</p>
         </div>

@@ -43,7 +43,7 @@ export default function SearchableTheaterList({ theaters, adminKey }: Props) {
         placeholder="Search theaters or cities…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6"
+        className="w-full rounded-md border border-border px-3 py-1.5 text-sm placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent mb-6"
       />
 
       {!debouncedQuery && (
@@ -52,21 +52,21 @@ export default function SearchableTheaterList({ theaters, adminKey }: Props) {
             <a
               key={state}
               href={`#${state}`}
-              className="text-xs font-medium text-gray-500 hover:text-gray-900 border border-gray-200 rounded px-2 py-1 hover:border-gray-400 transition-colors"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1 hover:border-ring transition-colors"
             >
-              {state} <span className="text-gray-400">({byState[state].length})</span>
+              {state} <span className="text-muted-foreground/80">({byState[state].length})</span>
             </a>
           ))}
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <p className="mt-16 text-center text-gray-400">No theaters match &ldquo;{debouncedQuery}&rdquo;</p>
+        <p className="mt-16 text-center text-muted-foreground/80">No theaters match &ldquo;{debouncedQuery}&rdquo;</p>
       ) : (
         <div className="space-y-10">
           {states.map((state) => (
             <section key={state} id={state}>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3 pb-2 border-b border-gray-100">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/80 mb-3 pb-2 border-b border-border/60">
                 {state}
               </h2>
               <ul className="space-y-2">
@@ -77,18 +77,18 @@ export default function SearchableTheaterList({ theaters, adminKey }: Props) {
                         href={t.audition_page_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline transition-colors"
+                        className="text-sm font-medium text-foreground hover:text-link hover:underline transition-colors"
                       >
                         {t.name}
                       </a>
                     ) : (
-                      <span className="text-sm font-medium text-gray-900">{t.name}</span>
+                      <span className="text-sm font-medium text-foreground">{t.name}</span>
                     )}
-                    <span className="text-xs text-gray-400">{t.city}</span>
+                    <span className="text-xs text-muted-foreground/80">{t.city}</span>
                     {adminKey && (
                       <a
                         href={`/admin/theaters/${t.id}?key=${adminKey}`}
-                        className="text-xs text-gray-400 hover:text-blue-600 transition-colors ml-1"
+                        className="text-xs text-muted-foreground/80 hover:text-link transition-colors ml-1"
                       >
                         edit
                       </a>

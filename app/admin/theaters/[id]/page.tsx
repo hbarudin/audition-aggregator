@@ -28,9 +28,9 @@ export default async function EditTheaterPage({
   return (
     <main className="max-w-xl mx-auto px-4 py-10">
       <header className="mb-8">
-        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Admin</p>
+        <p className="text-xs text-muted-foreground/80 uppercase tracking-wide mb-1">Admin</p>
         <h1 className="text-2xl font-bold tracking-tight">Edit theater</h1>
-        <p className="text-sm text-gray-500 mt-1">{theater.id}</p>
+        <p className="text-sm text-muted-foreground mt-1">{theater.id}</p>
       </header>
 
       <EditTheaterForm theater={theater as Theater} adminKey={key} />

@@ -36,19 +36,19 @@ export default async function PastAuditions({
       <header className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Past Auditions</h1>
-          <p className="text-gray-500 text-sm mt-1">Auditions whose dates have passed</p>
+          <p className="text-muted-foreground text-sm mt-1">Auditions whose dates have passed</p>
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors mt-1">
+        <Link href="/" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors mt-1">
           ← Current auditions
         </Link>
       </header>
 
       {error && (
-        <p className="mt-8 text-red-600 text-sm">Could not load auditions: {error.message}</p>
+        <p className="mt-8 text-destructive text-sm">Could not load auditions: {error.message}</p>
       )}
 
       {!error && (!auditions || auditions.length === 0) && (
-        <div className="mt-16 text-center text-gray-400">
+        <div className="mt-16 text-center text-muted-foreground/80">
           <p className="text-lg font-medium">No past auditions</p>
         </div>
       )}

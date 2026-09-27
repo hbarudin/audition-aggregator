@@ -4,11 +4,11 @@ export default function AuditionCard({ audition }: { audition: Audition }) {
   const theater = audition.theater;
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 transition-colors">
+    <div className="border border-border rounded-lg p-4 bg-card hover:border-ring transition-colors">
       <div className="flex justify-between items-start gap-4">
         <div>
-          <p className="font-semibold text-gray-900">{theater?.name}</p>
-          <p className="text-sm text-gray-500">
+          <p className="font-semibold text-foreground">{theater?.name}</p>
+          <p className="text-sm text-muted-foreground">
             {theater?.city}, {theater?.state}
           </p>
         </div>
@@ -17,7 +17,7 @@ export default function AuditionCard({ audition }: { audition: Audition }) {
             href={audition.source_url}
             target="_blank"
             rel="noreferrer"
-            className="shrink-0 text-sm text-blue-600 hover:underline"
+            className="shrink-0 text-sm text-link hover:underline"
           >
             View posting →
           </a>
@@ -25,19 +25,19 @@ export default function AuditionCard({ audition }: { audition: Audition }) {
       </div>
 
       {audition.show_name && (
-        <p className="mt-2 text-gray-800 font-medium">{audition.show_name}</p>
+        <p className="mt-2 text-foreground font-medium">{audition.show_name}</p>
       )}
 
-      <div className="mt-2 space-y-0.5 text-sm text-gray-600">
+      <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
         {audition.audition_dates && (
           <p>
-            <span className="text-gray-400">Auditions: </span>
+            <span className="text-muted-foreground/80">Auditions: </span>
             {audition.audition_dates}
           </p>
         )}
         {audition.performance_dates && (
           <p>
-            <span className="text-gray-400">Performances: </span>
+            <span className="text-muted-foreground/80">Performances: </span>
             {audition.performance_dates}
           </p>
         )}
@@ -75,10 +75,10 @@ function Badge({
   color: 'green' | 'blue' | 'purple' | 'gray';
 }) {
   const styles = {
-    green: 'bg-green-50 text-green-700 ring-green-600/20',
-    blue: 'bg-blue-50 text-blue-700 ring-blue-600/20',
-    purple: 'bg-purple-50 text-purple-700 ring-purple-600/20',
-    gray: 'bg-gray-50 text-gray-600 ring-gray-500/20',
+    green: 'bg-success-muted text-success ring-success/30',
+    blue: 'bg-link/10 text-link ring-link/30',
+    purple: 'bg-accent text-accent-foreground ring-border',
+    gray: 'bg-muted text-muted-foreground ring-border',
   };
   return (
     <span

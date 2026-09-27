@@ -55,12 +55,12 @@ export default function SearchableAuditionTable({ auditions, sort, direction, ba
           placeholder="Search theaters or shows…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 rounded-md border border-border px-3 py-1.5 text-sm placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
         />
         <select
           value={selectedState}
           onChange={(e) => setSelectedState(e.target.value)}
-          className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground/75 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
         >
           <option value="">All states</option>
           {states.map((s) => (
@@ -68,18 +68,18 @@ export default function SearchableAuditionTable({ auditions, sort, direction, ba
           ))}
         </select>
         <div className="flex items-center gap-1.5 shrink-0">
-          <label htmlFor="from-date" className="text-sm text-gray-400 whitespace-nowrap">From</label>
+          <label htmlFor="from-date" className="text-sm text-muted-foreground/80 whitespace-nowrap">From</label>
           <input
             id="from-date"
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground/75 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
           />
           {fromDate && (
             <button
               onClick={() => setFromDate('')}
-              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              className="text-muted-foreground/80 hover:text-muted-foreground text-lg leading-none"
               aria-label="Clear date filter"
             >
               ×
@@ -89,7 +89,7 @@ export default function SearchableAuditionTable({ auditions, sort, direction, ba
       </div>
 
       {filtered.length === 0 ? (
-        <div className="mt-16 text-center text-gray-400">
+        <div className="mt-16 text-center text-muted-foreground/80">
           <p className="text-lg font-medium">No auditions match your filters</p>
           <p className="text-sm mt-2">Try adjusting your search, state, or date.</p>
         </div>
