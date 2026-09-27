@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Audition } from '@/lib/types';
+import { pastFilter } from '@/lib/expiry';
 import SearchableAuditionTable from '@/components/SearchableAuditionTable';
 
 export const revalidate = 3600;
@@ -18,7 +19,7 @@ export default async function PastAuditions({
   let query = supabase
     .from('auditions')
     .select('*, theater:theaters(name, city, state)')
-    .eq('is_expired', true);
+    .or(pastFilter());
 
   if (sort === 'theater_name') {
     query = query.order('name', { referencedTable: 'theaters', ascending: direction === 'asc', nullsFirst: false });
