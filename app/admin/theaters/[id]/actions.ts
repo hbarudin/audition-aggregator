@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
+import { isAdmin } from '@/lib/admin';
 
 function serverClient() {
   return createClient(
@@ -13,7 +14,7 @@ function serverClient() {
 export type UpdateState = { success: true } | { error: string } | null;
 
 export async function updateTheater(_prevState: UpdateState, formData: FormData): Promise<UpdateState> {
-  if (formData.get('key') !== process.env.ADMIN_KEY) {
+  if (!(await isAdmin())) {
     return { error: 'Unauthorized.' };
   }
 

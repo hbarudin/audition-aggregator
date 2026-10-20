@@ -5,13 +5,7 @@ import SearchableTheaterList from '@/components/SearchableTheaterList';
 
 export const revalidate = 3600;
 
-export default async function TheatersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ admin?: string }>;
-}) {
-  const { admin } = await searchParams;
-  const adminKey = process.env.ADMIN_KEY && admin === process.env.ADMIN_KEY ? admin : null;
+export default async function TheatersPage() {
   const { data: theaters, error } = await supabase
     .from('theaters')
     .select('*')
@@ -43,7 +37,7 @@ export default async function TheatersPage({
         </Link>
       </header>
 
-      <SearchableTheaterList theaters={theaters as Theater[]} adminKey={adminKey} />
+      <SearchableTheaterList theaters={theaters as Theater[]} />
     </main>
   );
 }

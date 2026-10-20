@@ -5,12 +5,21 @@ import { Theater } from '@/lib/types';
 
 interface Props {
   theaters: Theater[];
-  adminKey?: string | null;
 }
 
-export default function SearchableTheaterList({ theaters, adminKey }: Props) {
+export default function SearchableTheaterList({ theaters }: Props) {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // This page is statically cached, so admin status is asked for separately
+  // rather than baked into the HTML every visitor shares.
+  useEffect(() => {
+    fetch('/api/admin/status')
+      .then((res) => (res.ok ? res.json() : { admin: false }))
+      .then((data: { admin: boolean }) => setIsAdmin(data.admin))
+      .catch(() => setIsAdmin(false));
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 250);
@@ -85,9 +94,9 @@ export default function SearchableTheaterList({ theaters, adminKey }: Props) {
                       <span className="text-sm font-medium text-foreground">{t.name}</span>
                     )}
                     <span className="text-xs text-muted-foreground/80">{t.city}</span>
-                    {adminKey && (
+                    {isAdmin && (
                       <a
-                        href={`/admin/theaters/${t.id}?key=${adminKey}`}
+                        href={`/admin/theaters/${t.id}`}
                         className="text-xs text-muted-foreground/80 hover:text-link transition-colors ml-1"
                       >
                         edit

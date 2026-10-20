@@ -11,20 +11,13 @@ const US_STATES = [
   'VA','WA','WV','WI','WY',
 ];
 
-export default function EditTheaterForm({
-  theater,
-  adminKey,
-}: {
-  theater: Theater;
-  adminKey: string;
-}) {
+export default function EditTheaterForm({ theater }: { theater: Theater }) {
   const [isActive, setIsActive] = useState(theater.is_active);
   const [state, action, pending] = useActionState<UpdateState, FormData>(updateTheater, null);
 
   return (
     <form action={action} className="flex flex-col gap-5">
       <input type="hidden" name="id" value={theater.id} />
-      <input type="hidden" name="key" value={adminKey} />
       <input type="hidden" name="is_active" value={String(isActive)} />
 
       <div className="flex flex-col gap-1">
