@@ -14,9 +14,9 @@ console.log(`Testing: ${name}`);
 console.log(`URL: ${url}\n`);
 
 async function main() {
-  const text = await fetchPage(url);
+  const { text, status } = await fetchPage(url);
   if (!text) {
-    console.error('Fetch failed.');
+    console.error(`Fetch failed (status ${status}).`);
     process.exit(1);
   }
 
