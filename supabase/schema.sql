@@ -53,3 +53,9 @@ alter table auditions enable row level security;
 
 create policy "public read theaters" on theaters for select using (true);
 create policy "public read auditions" on auditions for select using (true);
+
+-- The scraper and the admin edit page update theaters through service_role,
+-- which bypasses RLS but still needs the table grant. This was missing on the
+-- live database until 2026-10-20: deactivation writes failed silently for
+-- months because the error was discarded. auditions already had it.
+grant update on table theaters to service_role;

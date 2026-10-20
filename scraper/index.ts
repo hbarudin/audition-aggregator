@@ -21,19 +21,30 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function deactivateTheater(theater: Theater, reason: string, openIssues: Set<string>): Promise<void> {
+/** Returns whether the theater was actually deactivated. */
+async function deactivateTheater(theater: Theater, reason: string, openIssues: Set<string>): Promise<boolean> {
   console.log(`  → Deactivating: ${reason}`);
-  await supabase.from('theaters').update({ is_active: false }).eq('id', theater.id);
+
+  // This write silently did nothing for months: service_role was missing the
+  // UPDATE grant on theaters and the error was discarded. Surface it instead.
+  const { error } = await supabase.from('theaters').update({ is_active: false }).eq('id', theater.id);
+  if (error) {
+    console.error(`  → FAILED to deactivate ${theater.name}: ${error.message}`);
+    return false;
+  }
+
   const title = `Broken page: ${theater.name}`;
   if (openIssues.has(title)) {
     console.log(`  → Issue already open, skipping`);
-    return;
+    return true;
   }
   await fileIssue(
     title,
     `The scraper detected a broken or outdated audition page for **${theater.name}**.\n\n**URL:** ${theater.audition_page_url}\n**Reason:** ${reason}\n\nThis theater has been set to \`is_active = false\` and will be excluded from future scrapes until the URL is fixed and the theater is re-activated.`,
     ['scraper-issue']
   );
+
+  return true;
 }
 
 interface ScrapeResult {
@@ -45,15 +56,15 @@ async function scrapeTheater(theater: Theater, openIssues: Set<string>): Promise
   const { text: pageText, status } = await fetchPage(theater.audition_page_url!);
 
   if (status === 404) {
-    await deactivateTheater(theater, `HTTP 404 — page does not exist`, openIssues);
-    return { auditions: 0, deactivated: true };
+    const deactivated = await deactivateTheater(theater, `HTTP 404 — page does not exist`, openIssues);
+    return { auditions: 0, deactivated };
   }
 
   if (!pageText) return { auditions: 0, deactivated: false };
 
   if (PAGE_NOT_FOUND_RE.test(pageText.slice(0, 2_000))) {
-    await deactivateTheater(theater, `Page content matches "page not found" pattern`, openIssues);
-    return { auditions: 0, deactivated: true };
+    const deactivated = await deactivateTheater(theater, `Page content matches "page not found" pattern`, openIssues);
+    return { auditions: 0, deactivated };
   }
 
   const auditions = await parseAuditions(pageText, theater.name);
@@ -62,12 +73,12 @@ async function scrapeTheater(theater: Theater, openIssues: Set<string>): Promise
   const datedAuditions = auditions.filter((a) => a.audition_date_start != null);
   const allPreDateline = datedAuditions.length > 0 && datedAuditions.every((a) => a.audition_date_start! < '2025-01-01');
   if (allPreDateline) {
-    await deactivateTheater(
+    const deactivated = await deactivateTheater(
       theater,
       `All parsed audition dates are from before 2025 (oldest: ${datedAuditions[0].audition_date_start})`,
       openIssues
     );
-    return { auditions: 0, deactivated: true };
+    return { auditions: 0, deactivated };
   }
 
   // Replace this theater's auditions with fresh data from this scrape run
