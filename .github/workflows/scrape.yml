@@ -19,6 +19,12 @@ jobs:
   scrape:
     runs-on: ubuntu-latest  # free Linux VM provided by GitHub
 
+    # "permissions" scopes the automatic GITHUB_TOKEN for this job. This repo's
+    # default is read-only, so the scraper's "Broken page" issues were failing
+    # to file on every scheduled run. Issues: write is the only scope it needs.
+    permissions:
+      issues: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,8 +45,13 @@ jobs:
       - name: Run scraper
         run: npx tsx scraper/index.ts
         env:
-          # These reference secrets you'll set in GitHub repo settings.
+          # These reference secrets you set in GitHub repo settings.
           # They're never visible in logs or to other workflows.
+          #
+          # GITHUB_TOKEN is the exception: secret names can't start with
+          # GITHUB_, so this is the token Actions mints per run, scoped by the
+          # "permissions" block above — not a PAT. The local .env.local and
+          # Vercel copies of GITHUB_TOKEN are separate, and are PATs.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
