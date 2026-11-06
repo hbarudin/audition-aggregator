@@ -156,14 +156,14 @@ async function main() {
     const theater = theaters[i] as Theater;
     console.log(`[${i + 1}/${theaters.length}] ${theater.name}`);
 
-    const hasOpenIssue =
-      openIssues.has(`Broken page: ${theater.name}`) ||
-      openIssues.has(`Missing audition URL: ${theater.name}`);
-
-    if (hasOpenIssue) {
-      console.log(`  → Skipping: open issue exists`);
-      if (i < theaters.length - 1) await sleep(DELAY_MS);
-      continue;
+    // An open issue used to skip the theater entirely. That was redundant --
+    // a genuinely broken theater is already is_active = false and never
+    // reaches this loop -- and it quietly froze every theater someone
+    // re-activated to retry: the open issue kept it from ever being scraped
+    // again, so the issue itself became the thing keeping it broken.
+    // Duplicate issues are already prevented inside deactivateTheater.
+    if (openIssues.has(`Broken page: ${theater.name}`)) {
+      console.log(`  → Has an open tracker issue; re-trying it anyway`);
     }
 
     try {
