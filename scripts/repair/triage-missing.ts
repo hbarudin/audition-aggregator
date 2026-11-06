@@ -175,4 +175,14 @@ async function main() {
   console.log(`Review at /admin/repair — every row starts at "?".`);
 }
 
-main();
+// These scripts finish their work but Node keeps the process alive: the HTTP
+// keep-alive pool holds an ESTABLISHED socket open after the last request, so
+// the event loop never drains. Left alone the process lingers indefinitely,
+// which also strands anything waiting on it to finish. Exit explicitly.
+main().then(
+  () => process.exit(0),
+  (err) => {
+    console.error(err);
+    process.exit(1);
+  }
+);

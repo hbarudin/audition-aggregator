@@ -189,4 +189,14 @@ async function main() {
   if (applied) console.log(`\nRe-run triage to refresh the sheet, or run the scraper to pick up re-activated theaters.`);
 }
 
-main();
+// These scripts finish their work but Node keeps the process alive: the HTTP
+// keep-alive pool holds an ESTABLISHED socket open after the last request, so
+// the event loop never drains. Left alone the process lingers indefinitely,
+// which also strands anything waiting on it to finish. Exit explicitly.
+main().then(
+  () => process.exit(0),
+  (err) => {
+    console.error(err);
+    process.exit(1);
+  }
+);
