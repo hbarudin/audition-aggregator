@@ -395,7 +395,7 @@ export async function triageTheater(
     }
 
     return { ...base, verdict: 'NO_CANDIDATE', recommendedUrl: null,
-      evidence: `${origin} is up (HTTP ${home.status}) but no audition page found: ${probed} path(s) probed, ${linkCount} from the site's own nav/sub-pages. Site is alive, so this is more likely a theater between seasons than a dead one — decide between retiring it and finding the page by hand.`, probes };
+      evidence: `${origin} answers (HTTP ${home.status}) but no audition page found: ${probed} path(s) probed, ${linkCount} from the site's own nav/sub-pages. The domain still resolves, so this is more likely a theater between seasons than a dead one — decide between retiring it and finding the page by hand.`, probes };
   }
 
   // 4. Parse the live candidates; prefer one with currently-dated auditions.

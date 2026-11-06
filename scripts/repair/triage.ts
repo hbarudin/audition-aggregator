@@ -44,6 +44,28 @@ function nextFreePath(stamp: string): string {
   }
 }
 
+/** Theater ids this workflow deliberately retired. */
+function retiredIds(): Set<string> {
+  const ids = new Set<string>();
+  let files: string[];
+  try {
+    files = fs.readdirSync(REPAIR_DIR).filter((f) => f.endsWith('.applied.json'));
+  } catch {
+    return ids;
+  }
+  for (const f of files) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(REPAIR_DIR, f), 'utf8'));
+      for (const record of Array.isArray(parsed) ? parsed : []) {
+        if (record?.action === 'retire' && record?.theaterId) ids.add(record.theaterId);
+      }
+    } catch {
+      /* unreadable log */
+    }
+  }
+  return ids;
+}
+
 /**
  * Theater ids that have already been written for. Deliberately keyed on what
  * was *applied*, not on what was triaged: leaving a row alone means "not now",
@@ -174,8 +196,11 @@ async function main() {
     }
   }
   const issuedNames = new Set([...brokenByName.keys(), ...missingByName.keys()]);
+  // A theater retired through this workflow is inactive with no open issue by
+  // design. Without this it reappears as "untracked" in every later batch.
+  const retired = retiredIds();
   for (const t of theaters) {
-    if (!t.is_active && !issuedNames.has(t.name)) {
+    if (!t.is_active && !issuedNames.has(t.name) && !retired.has(t.id)) {
       reconcile.push({ kind: 'untracked-inactive', name: t.name, issueNumber: null,
         note: `Deactivated with no open issue — invisible work. URL on record: ${t.audition_page_url ?? 'none'}` });
     }
