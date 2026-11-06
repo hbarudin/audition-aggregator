@@ -1,4 +1,8 @@
 const TIMEOUT_MS = 10_000;
+// Discovery probes dozens of candidate paths per theater, most of which are
+// dead ends. Waiting the full scrape timeout on each one makes a triage batch
+// take minutes per theater, so callers can ask for a shorter one.
+
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 // Generous safety valve, not a budget: a 21k-char page is only ~6k input
 // tokens against the model's 200k context, and the median theater page is
@@ -11,10 +15,14 @@ export interface FetchResult {
   status: number; // HTTP status, or 0 for network/timeout errors
 }
 
-export async function fetchPage(url: string): Promise<FetchResult> {
+export async function fetchPage(
+  url: string,
+  opts: { timeoutMs?: number } = {}
+): Promise<FetchResult> {
+  const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -36,7 +44,7 @@ export async function fetchPage(url: string): Promise<FetchResult> {
     return { text, status: response.status };
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
-      console.log(`  → Timeout after ${TIMEOUT_MS / 1000}s`);
+      console.log(`  → Timeout after ${timeoutMs / 1000}s`);
     } else {
       console.log(`  → Fetch error: ${err}`);
     }
