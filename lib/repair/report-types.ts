@@ -11,7 +11,10 @@ export type Verdict =
   | 'BLOCKED'
   | 'ORIGIN_DEAD'
   | 'STALE_LISTINGS_ONLY'
-  | 'NO_CANDIDATE';
+  | 'NO_CANDIDATE'
+  // The missing-URL track, where discovery starts from a web search.
+  | 'IDENTITY_UNCONFIRMED'
+  | 'NOT_FOUND';
 
 /** One triaged theater, without the bulky probe log. */
 export interface Finding {
@@ -56,6 +59,9 @@ export const VERDICT_BLURB: Record<Verdict, string> = {
   ORIGIN_DEAD: 'The domain does not resolve. Retirement candidate.',
   STALE_LISTINGS_ONLY: 'The URL is fine; the theater just has not posted a new call.',
   NO_CANDIDATE: 'Site is alive but no audition page was found.',
+  IDENTITY_UNCONFIRMED:
+    'A live audition page, but we could not confirm it belongs to this theater. Open it before adopting.',
+  NOT_FOUND: 'Search turned up no audition page for this theater.',
 };
 
 /** A decision that has already been written, recorded beside the report. */

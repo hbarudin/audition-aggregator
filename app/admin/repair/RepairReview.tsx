@@ -11,6 +11,8 @@ const VERDICT_STYLE: Record<string, string> = {
   STALE_LISTINGS_ONLY: 'bg-warning-muted text-warning border-warning-border',
   BLOCKED: 'bg-warning-muted text-warning border-warning-border',
   NO_CANDIDATE: 'bg-muted text-muted-foreground border-border',
+  NOT_FOUND: 'bg-muted text-muted-foreground border-border',
+  IDENTITY_UNCONFIRMED: 'bg-warning-muted text-warning border-warning-border',
   ORIGIN_DEAD: 'bg-destructive/10 text-destructive border-destructive/30',
 };
 
@@ -246,6 +248,12 @@ export default function RepairReview({
                     placeholder="https://…"
                     className="mt-3 w-full rounded-md border border-border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                )}
+
+                {decision !== '' && f.verdict === 'IDENTITY_UNCONFIRMED' && (
+                  <p className="mt-3 text-xs text-warning">
+                    Open the page first — this may be a different theater with a similar name.
+                  </p>
                 )}
 
                 {decision === 'retire' && (
