@@ -29,6 +29,49 @@ const RECOMMENDATION: Record<Verdict, string> = {
   NO_CANDIDATE: 'review',
 };
 
+
+/**
+ * A report is the record of a batch, and apply.ts logs what was written
+ * beside it, so overwriting one loses work that has not been acted on yet.
+ * Later batches on the same day get a suffix instead.
+ */
+function nextFreePath(stamp: string): string {
+  const first = path.join(REPAIR_DIR, `decisions-${stamp}.tsv`);
+  if (!fs.existsSync(first)) return first;
+  for (let n = 2; ; n++) {
+    const candidate = path.join(REPAIR_DIR, `decisions-${stamp}-${n}.tsv`);
+    if (!fs.existsSync(candidate)) return candidate;
+  }
+}
+
+/**
+ * Theater ids that have already been written for. Deliberately keyed on what
+ * was *applied*, not on what was triaged: leaving a row alone means "not now",
+ * so it has to come back in a later batch. Only a decision that actually did
+ * something -- including `playwright`, which parks a theater pending that work
+ * -- takes it out of rotation.
+ */
+function alreadyActedOn(): Set<string> {
+  const seen = new Set<string>();
+  let files: string[];
+  try {
+    files = fs.readdirSync(REPAIR_DIR).filter((f) => f.endsWith('.applied.json'));
+  } catch {
+    return seen;
+  }
+  for (const f of files) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(REPAIR_DIR, f), 'utf8'));
+      for (const record of Array.isArray(parsed) ? parsed : []) {
+        if (record?.theaterId) seen.add(record.theaterId);
+      }
+    } catch {
+      /* unreadable log; just do not let it hide anything */
+    }
+  }
+  return seen;
+}
+
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i === -1 ? undefined : process.argv[i + 1];
@@ -84,6 +127,17 @@ async function main() {
     });
 
   if (only) targets = targets.filter((t) => t.name.toLowerCase().includes(only.toLowerCase()));
+
+  // Skip theaters an earlier batch already acted on, so --limit means "the next
+  // N still needing a decision". Rows left alone come back. --redo overrides.
+  if (!hasFlag('redo') && !only) {
+    const seen = alreadyActedOn();
+    const before = targets.length;
+    targets = targets.filter((t) => !seen.has(t.theater.id));
+    const skipped = before - targets.length;
+    if (skipped) console.log(`Skipping ${skipped} theater(s) already repaired (--redo to include them)\n`);
+  }
+
   const limit = arg('limit') ? parseInt(arg('limit')!, 10) : undefined;
   if (limit) targets = targets.slice(0, limit);
 
@@ -129,7 +183,7 @@ async function main() {
 
   fs.mkdirSync(REPAIR_DIR, { recursive: true });
   const stamp = new Date().toISOString().split('T')[0];
-  const outPath = arg('out') ?? path.join(REPAIR_DIR, `decisions-${stamp}.tsv`);
+  const outPath = arg('out') ?? nextFreePath(stamp);
   const jsonPath = outPath.replace(/\.tsv$/, '.evidence.json');
 
   // theater_id is the write key: "Phoenix Theatre" is not unique, so applying

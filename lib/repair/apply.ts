@@ -100,10 +100,19 @@ export async function applyDecision(
     }
 
     if (action === 'retire') {
+      // Append rather than replace: notes are hand-written context about the
+      // theater, and a retirement reason is no cause to throw them away.
+      const { data: existing } = await supabase
+        .from('theaters')
+        .select('notes')
+        .eq('id', target.theaterId)
+        .single();
+      const previous = (existing?.notes ?? '').trim();
       const reason = `Retired by theater-repair workflow on ${new Date().toISOString().split('T')[0]}: ${target.evidence}`;
+
       const { error } = await updateTheater(supabase, target.theaterId, {
         is_active: false,
-        notes: reason,
+        notes: previous ? `${previous}\n\n${reason}` : reason,
       });
       if (error) return done(false, `Database update failed: ${error.message}`);
 
