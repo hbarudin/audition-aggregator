@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { fetchPage } from '../../scraper/fetch';
 import { parseAuditions } from '../../scraper/parse';
+import { AUDITION_WORD_RE, SOFT_404_RE } from '../../lib/repair/page-signals';
 
 /**
  * Discovery for theaters that have no URL on record at all.
@@ -183,8 +184,6 @@ function confirmsIdentity(pageText: string, theater: MissingTheater): { ok: bool
   };
 }
 
-const SOFT_404_RE = /\b(page not found|404 not found|this page (doesn't|does not) exist|we couldn't find this page|page cannot be found|nothing found)\b/i;
-const AUDITION_WORD_RE = /\b(audition|casting call|open call|submissions?)\b/i;
 
 export async function findMissingUrl(
   theater: MissingTheater,
