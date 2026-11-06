@@ -28,19 +28,23 @@ class is still manual: find the theater's site, then add the URL through
 
 ## The loop
 
-Nothing is written until you decide. `triage.ts` only reads; `apply.ts` is the
-only thing that touches Supabase or the tracker, and only for rows you have
-marked.
+Nothing is written until you decide. Triage only reads. Review happens in the
+GUI or in the decision sheet -- same report, same choices, same writes, because
+both call `lib/repair/apply.ts`.
 
 ```
-# 1. Triage a batch. Start small; each theater takes ~30-60s.
-npx tsx scripts/repair/triage.ts --limit 10
+# 1. Triage a batch. Start small.
+npm run repair:triage -- --limit 10
 
-# 2. Read repair/decisions-<date>.tsv and set the decision column.
+# 2a. Review in the browser (easiest -- the found URL is a link you can open):
+npm run dev     # then open http://localhost:3000/admin/repair
 
-# 3. Apply. It prints the plan and asks for confirmation.
+# 2b. Or edit repair/decisions-<date>.tsv and set the decision column, then:
 npx tsx scripts/repair/apply.ts repair/decisions-<date>.tsv
 ```
+
+The GUI is local-only: triage writes its report into `repair/`, which is not
+deployed. It needs the admin cookie, same as the rest of `/admin`.
 
 Useful flags:
 
