@@ -116,16 +116,31 @@ function isLiveAuditionPage(p: Probe): boolean {
   return p.status === 200 && !p.softNotFound && p.hasAuditionWords && p.textLength > 200;
 }
 
-async function getHtml(url: string): Promise<string | null> {
+async function getHtml(url: string): Promise<{ html: string; finalUrl: string } | null> {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     if (!res.ok) return null;
-    return await res.text();
+    return { html: await res.text(), finalUrl: res.url || url };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Whether two URLs belong to the same theater's site. Comparing URL.origin is
+ * too strict: the stored URL is often http://www.example.com while the live
+ * site serves https://example.com, and an exact origin match then discards
+ * every link in the site's own nav.
+ */
+function sameSite(a: string, b: string): boolean {
+  try {
+    const host = (u: string) => new URL(u).hostname.replace(/^www\./i, '').toLowerCase();
+    return host(a) === host(b);
+  } catch {
+    return false;
   }
 }
 
@@ -164,11 +179,11 @@ function extractAnchors(html: string): Anchor[] {
   return anchors;
 }
 
-function absolutize(href: string, base: string, origin: string): string | null {
+function absolutize(href: string, base: string, site: string): string | null {
   if (/^(mailto:|tel:|javascript:|#)/i.test(href)) return null;
   try {
     const abs = new URL(href, base);
-    if (abs.origin !== origin) return null; // stay on the theater's own site
+    if (!sameSite(abs.toString(), site)) return null; // stay on the theater's own site
     if (/\.(pdf|jpg|jpeg|png|gif|svg|zip|docx?|xlsx?|mp4|mov)$/i.test(abs.pathname)) return null;
     abs.hash = '';
     return abs.toString();
@@ -211,16 +226,20 @@ async function collectCandidates(origin: string, brokenUrl: string): Promise<Can
     out.push(c);
   };
 
-  const homeHtml = await getHtml(origin);
+  const home = await getHtml(origin);
+  // Follow the site to where it actually lives. The stored URL is frequently
+  // http://www.x.com while the site serves https://x.com, and guessing paths
+  // on the stale origin means every probe pays a redirect.
+  const canonicalOrigin = home ? new URL(home.finalUrl).origin : origin;
   const hubs: Candidate[] = [];
 
-  if (homeHtml) {
-    const anchors = extractAnchors(homeHtml);
+  if (home) {
+    const anchors = extractAnchors(home.html);
     // Nav first, then body links: the nav is where a season's audition page is announced.
     for (const pass of [true, false]) {
       for (const a of anchors) {
         if (a.inNav !== pass) continue;
-        const url = absolutize(a.href, origin, origin);
+        const url = absolutize(a.href, home.finalUrl, canonicalOrigin);
         if (!url) continue;
         if (AUDITION_LINK_RE.test(a.href) || AUDITION_LINK_RE.test(a.text)) {
           push({ url, source: pass ? 'nav' : 'homepage', linkText: a.text || undefined });
@@ -237,7 +256,7 @@ async function collectCandidates(origin: string, brokenUrl: string): Promise<Can
     const u = new URL(brokenUrl);
     const parts = u.pathname.split('/').filter(Boolean);
     if (parts.length > 1) {
-      hubs.unshift({ url: `${origin}/${parts.slice(0, -1).join('/')}/`, source: 'subpage', linkText: 'parent of the broken URL' });
+      hubs.unshift({ url: `${canonicalOrigin}/${parts.slice(0, -1).join('/')}/`, source: 'subpage', linkText: 'parent of the broken URL' });
     }
   } catch {
     /* already validated upstream */
@@ -251,18 +270,18 @@ async function collectCandidates(origin: string, brokenUrl: string): Promise<Can
     if (hubSeen.has(hub.url)) continue;
     hubSeen.add(hub.url);
     await sleep(PROBE_DELAY_MS);
-    const html = await getHtml(hub.url);
-    if (!html) continue;
+    const page = await getHtml(hub.url);
+    if (!page) continue;
     hopped++;
-    for (const a of extractAnchors(html)) {
+    for (const a of extractAnchors(page.html)) {
       if (!AUDITION_LINK_RE.test(a.href) && !AUDITION_LINK_RE.test(a.text)) continue;
-      const url = absolutize(a.href, hub.url, origin);
+      const url = absolutize(a.href, page.finalUrl, canonicalOrigin);
       if (!url) continue;
       push({ url, source: 'subpage', linkText: a.text ? `${a.text} (via ${hub.linkText ?? hub.url})` : `via ${hub.linkText ?? hub.url}` });
     }
   }
 
-  for (const p of GUESS_PATHS) push({ url: origin + p, source: 'guess' });
+  for (const p of GUESS_PATHS) push({ url: canonicalOrigin + p, source: 'guess' });
 
   return out;
 }
@@ -344,6 +363,10 @@ export async function triageTheater(
   let probed = 0;
   for (const c of candidates) {
     if (probed >= MAX_PROBES) break;
+    // The site's own links are ordered ahead of the guesses. Once one of them
+    // is a live audition page there is nothing left to guess at, so stop
+    // rather than paying 27 more probes for a worse answer.
+    if (c.source === 'guess' && liveCandidates.length > 0) break;
     await sleep(PROBE_DELAY_MS);
     const p = await probe(c);
     probes.push(p);
