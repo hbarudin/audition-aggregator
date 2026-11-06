@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { isAdmin } from '@/lib/admin';
 import { applyDecision, RepairAction, RepairResult } from '@/lib/repair/apply';
-import { readReport } from '@/lib/repair/report';
+import { readApplied, readReport, recordApplied } from '@/lib/repair/report';
 
 function serverClient() {
   return createClient(
@@ -36,6 +36,10 @@ export async function applyDecisions(_prev: ApplyState, formData: FormData): Pro
   if (!report) return { error: `Could not read report ${reportFile}.` };
 
   const byId = new Map(report.findings.map((f) => [f.theaterId, f]));
+  // Applying the same decision twice posts a duplicate comment and re-closes a
+  // closed issue, so a theater already written for this report is refused even
+  // if the form still offers it.
+  const alreadyApplied = new Set(readApplied(reportFile).map((a) => a.theaterId));
   const supabase = serverClient();
   const results: RepairResult[] = [];
 
@@ -45,6 +49,16 @@ export async function applyDecisions(_prev: ApplyState, formData: FormData): Pro
     const theaterId = key.slice('decision:'.length);
     const finding = byId.get(theaterId);
     if (!finding) continue;
+    if (alreadyApplied.has(theaterId)) {
+      results.push({
+        theaterId: finding.theaterId,
+        theaterName: finding.theaterName,
+        action: 'close',
+        ok: false,
+        detail: 'Already applied for this report; skipped to avoid writing twice.',
+      });
+      continue;
+    }
 
     let action = value;
     let newUrl: string | null = finding.recommendedUrl;
@@ -78,6 +92,20 @@ export async function applyDecisions(_prev: ApplyState, formData: FormData): Pro
   if (results.length === 0) {
     return { error: 'Nothing was selected, so nothing was changed.' };
   }
+
+  const now = new Date().toISOString();
+  recordApplied(
+    reportFile,
+    results
+      .filter((r) => r.ok)
+      .map((r) => ({
+        theaterId: r.theaterId,
+        theaterName: r.theaterName,
+        action: r.action,
+        detail: r.detail,
+        at: now,
+      }))
+  );
 
   revalidatePath('/admin/repair');
   revalidatePath('/theaters');

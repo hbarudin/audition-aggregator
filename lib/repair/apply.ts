@@ -27,6 +27,8 @@ export interface RepairTarget {
 }
 
 export interface RepairResult {
+  /** Carried through so callers never have to match results back by name. */
+  theaterId: string;
   theaterName: string;
   action: RepairAction;
   ok: boolean;
@@ -51,6 +53,7 @@ export async function applyDecision(
   target: RepairTarget
 ): Promise<RepairResult> {
   const done = (ok: boolean, detail: string): RepairResult => ({
+    theaterId: target.theaterId,
     theaterName: target.theaterName,
     action,
     ok,

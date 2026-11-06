@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState } from 'react';
 import { applyDecisions, ApplyState } from './actions';
-import { Finding, Report, VERDICT_BLURB } from '@/lib/repair/report-types';
+import { AppliedRecord, Finding, Report, VERDICT_BLURB } from '@/lib/repair/report-types';
 
 const VERDICT_STYLE: Record<string, string> = {
   CURRENT_URL_OK: 'bg-success-muted text-success border-success-border',
@@ -42,36 +42,57 @@ function Pill({ verdict }: { verdict: string }) {
   );
 }
 
-export default function RepairReview({ report }: { report: Report }) {
+export default function RepairReview({
+  report,
+  applied,
+}: {
+  report: Report;
+  applied: AppliedRecord[];
+}) {
   const [decisions, setDecisions] = useState<Record<string, string>>({});
   const [urls, setUrls] = useState<Record<string, string>>({});
-  const [state, action, pending] = useActionState<ApplyState, FormData>(applyDecisions, null);
+  const [state, action, isApplying] = useActionState<ApplyState, FormData>(applyDecisions, null);
 
   const set = (id: string, value: string) => setDecisions((d) => ({ ...d, [id]: value }));
 
+  const doneById = useMemo(
+    () => new Map(applied.map((a) => [a.theaterId, a])),
+    [applied]
+  );
+  const pending = useMemo(
+    () => report.findings.filter((f) => !doneById.has(f.theaterId)),
+    [report.findings, doneById]
+  );
+  const done = useMemo(
+    () => report.findings.filter((f) => doneById.has(f.theaterId)),
+    [report.findings, doneById]
+  );
+
+  // Only pending rows can be chosen, so a stale selection left over from the
+  // last submit cannot resurrect a theater that has already been written.
   const chosen = useMemo(
-    () => report.findings.filter((f) => decisions[f.theaterId]),
-    [report.findings, decisions]
+    () => pending.filter((f) => decisions[f.theaterId]),
+    [pending, decisions]
   );
   const retiring = chosen.filter((f) => decisions[f.theaterId] === 'retire');
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const f of report.findings) c[f.verdict] = (c[f.verdict] ?? 0) + 1;
+    for (const f of pending) c[f.verdict] = (c[f.verdict] ?? 0) + 1;
     return Object.entries(c).sort((a, b) => b[1] - a[1]);
-  }, [report.findings]);
+  }, [pending]);
 
   /** Accept the suggestion for every row triage was confident about. */
   const acceptStrong = () => {
     const next = { ...decisions };
-    for (const f of report.findings) {
+    for (const f of pending) {
       if (f.verdict === 'CANDIDATE_STRONG' && f.recommendedUrl) next[f.theaterId] = 'url';
       if (f.verdict === 'CURRENT_URL_OK') next[f.theaterId] = 'reactivate';
     }
     setDecisions(next);
   };
 
-  const applied = state && 'results' in state ? state.results : null;
+  const lastResults = state && 'results' in state ? state.results : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,15 +104,18 @@ export default function RepairReview({ report }: { report: Report }) {
           </span>
         ))}
         <span className="ml-auto">
-          {report.findings.length} theater(s) · triaged {new Date(report.generatedAt).toLocaleString()}
+          {pending.length} left{done.length ? ` · ${done.length} done` : ''} · triaged{' '}
+          {new Date(report.generatedAt).toLocaleString()}
         </span>
       </div>
 
-      {applied && (
+      {lastResults && (
         <div className="rounded-lg border border-border bg-muted/40 p-4">
-          <h2 className="text-sm font-semibold mb-2">Applied {applied.length} change(s)</h2>
+          <h2 className="text-sm font-semibold mb-2">
+            Applied {lastResults.filter((r) => r.ok).length} change(s)
+          </h2>
           <ul className="flex flex-col gap-1 text-sm">
-            {applied.map((r, i) => (
+            {lastResults.map((r, i) => (
               <li key={i} className={r.ok ? 'text-foreground/80' : 'text-destructive'}>
                 <span className="font-medium">{r.theaterName}</span> — {r.detail}
               </li>
@@ -128,7 +152,7 @@ export default function RepairReview({ report }: { report: Report }) {
         </div>
 
         <ul className="flex flex-col gap-3">
-          {report.findings.map((f) => {
+          {pending.map((f) => {
             const decision = decisions[f.theaterId] ?? '';
             return (
               <li
@@ -234,13 +258,49 @@ export default function RepairReview({ report }: { report: Report }) {
           })}
         </ul>
 
+        {pending.length === 0 && (
+          <p className="rounded-lg border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
+            Every theater in this report has been handled. Run{' '}
+            <code className="font-mono">npm run repair:triage</code> for the next batch.
+          </p>
+        )}
+
+        {done.length > 0 && (
+          <details className="rounded-lg border border-border">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+              Done ({done.length})
+            </summary>
+            <ul className="flex flex-col gap-2 border-t border-border px-4 py-3 text-sm">
+              {done.map((f) => {
+                const record = doneById.get(f.theaterId)!;
+                return (
+                  <li key={f.theaterId} className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-medium">{f.theaterName}</span>
+                    {f.issueNumber && (
+                      <a
+                        href={`https://github.com/hbarudin/audition-aggregator/issues/${f.issueNumber}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-link hover:underline"
+                      >
+                        #{f.issueNumber}
+                      </a>
+                    )}
+                    <span className="text-xs text-muted-foreground">{record.detail}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
+        )}
+
         <div className="sticky bottom-0 flex items-center gap-4 border-t border-border bg-background/95 py-4 backdrop-blur">
           <button
             type="submit"
-            disabled={pending || chosen.length === 0}
+            disabled={isApplying || chosen.length === 0}
             className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-40 hover:opacity-90 transition-opacity"
           >
-            {pending ? 'Applying…' : `Apply ${chosen.length} change${chosen.length === 1 ? '' : 's'}`}
+            {isApplying ? 'Applying…' : `Apply ${chosen.length} change${chosen.length === 1 ? '' : 's'}`}
           </button>
           <p className="text-xs text-muted-foreground">
             {chosen.length === 0

@@ -57,3 +57,12 @@ export const VERDICT_BLURB: Record<Verdict, string> = {
   STALE_LISTINGS_ONLY: 'The URL is fine; the theater just has not posted a new call.',
   NO_CANDIDATE: 'Site is alive but no audition page was found.',
 };
+
+/** A decision that has already been written, recorded beside the report. */
+export interface AppliedRecord {
+  theaterId: string;
+  theaterName: string;
+  action: string;
+  detail: string;
+  at: string;
+}

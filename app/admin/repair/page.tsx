@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { isAdmin } from '@/lib/admin';
-import { listReports, readReport } from '@/lib/repair/report';
+import { listReports, readApplied, readReport } from '@/lib/repair/report';
 import { logout } from '../login/actions';
 import RepairReview from './RepairReview';
 
@@ -22,6 +22,7 @@ export default async function RepairPage({
   const reports = listReports();
   const selected = params.report && reports.includes(params.report) ? params.report : reports[0];
   const report = selected ? readReport(selected) : null;
+  const applied = selected ? readApplied(selected) : [];
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
@@ -81,7 +82,7 @@ export default async function RepairPage({
           {report.file} has no findings in it.
         </p>
       ) : (
-        <RepairReview report={report} />
+        <RepairReview report={report} applied={applied} />
       )}
 
       {report && report.reconcile.length > 0 && (

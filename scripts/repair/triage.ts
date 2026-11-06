@@ -116,7 +116,7 @@ async function main() {
     const t = byName.get(name);
     if (t?.is_active) {
       reconcile.push({ kind: 'stale-issue', name, issueNumber: issue.number,
-        note: 'Theater is active again but the issue is still open, so the scraper skips it every run.' });
+        note: 'Theater is active again but the issue is still open. The scrape no longer skips it, so this is just a stale issue to close.' });
     }
   }
   const issuedNames = new Set([...brokenByName.keys(), ...missingByName.keys()]);
