@@ -45,6 +45,33 @@ function nextFreePath(stamp: string): string {
   }
 }
 
+/**
+ * Theaters sitting in a report that still awaits a decision. They are neither
+ * repaired nor passed over -- they are already in the queue -- so a new batch
+ * should not pick them up again and duplicate the work.
+ */
+function alreadyQueued(acted: Set<string>, snoozed: Set<string>): Set<string> {
+  const queued = new Set<string>();
+  let files: string[];
+  try {
+    files = fs.readdirSync(REPAIR_DIR).filter((f) => f.endsWith('.evidence.json'));
+  } catch {
+    return queued;
+  }
+  for (const f of files) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(REPAIR_DIR, f), 'utf8'));
+      for (const finding of parsed.findings ?? []) {
+        const id = finding?.theaterId;
+        if (id && !acted.has(id) && !snoozed.has(id)) queued.add(id);
+      }
+    } catch {
+      /* unreadable report */
+    }
+  }
+  return queued;
+}
+
 /** Theater ids this workflow deliberately retired. */
 function retiredIds(): Set<string> {
   const ids = new Set<string>();
@@ -166,7 +193,14 @@ async function main() {
     targets = targets.filter((t) => !snoozed.has(t.theater.id));
     const deferred = beforeDefer - targets.length;
     if (deferred) console.log(`Skipping ${deferred} theater(s) you passed on within the last ${DEFER_DAYS} days (--include-deferred to see them)`);
-    if (repaired || deferred) console.log();
+
+    const queued = alreadyQueued(seen, new Set(snoozed.keys()));
+    const beforeQueued = targets.length;
+    targets = targets.filter((t) => !queued.has(t.theater.id));
+    const stillQueued = beforeQueued - targets.length;
+    if (stillQueued) console.log(`Skipping ${stillQueued} theater(s) already waiting for a decision in an earlier report`);
+
+    if (repaired || deferred || stillQueued) console.log();
   }
 
   const limit = arg('limit') ? parseInt(arg('limit')!, 10) : undefined;
