@@ -44,3 +44,4 @@ next-env.d.ts
 # bulky per-probe evidence dumps.
 repair/*.evidence.json
 repair/*.applied.json
+repair/deferred.json

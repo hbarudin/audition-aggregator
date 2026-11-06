@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { isAdmin } from '@/lib/admin';
 import { applyDecision, RepairAction, RepairResult } from '@/lib/repair/apply';
 import { readApplied, readReport, recordApplied } from '@/lib/repair/report';
+import { recordDeferrals } from '@/lib/repair/defer';
 
 function serverClient() {
   return createClient(
@@ -105,6 +106,14 @@ export async function applyDecisions(_prev: ApplyState, formData: FormData): Pro
         detail: r.detail,
         at: now,
       }))
+  );
+
+  // Everything still pending in this report was looked at and passed over.
+  const decided = new Set(results.map((r) => r.theaterId));
+  recordDeferrals(
+    report.findings
+      .filter((f) => !decided.has(f.theaterId) && !alreadyApplied.has(f.theaterId))
+      .map((f) => ({ theaterId: f.theaterId, theaterName: f.theaterName, at: now }))
   );
 
   revalidatePath('/admin/repair');

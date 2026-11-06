@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as readline from 'readline';
 import { applyDecision, RepairAction, RepairTarget } from '../../lib/repair/apply';
+import { recordDeferrals } from '../../lib/repair/defer';
 
 /**
  * Applies a reviewed decision sheet from triage.ts. The GUI at /admin/repair
@@ -172,6 +173,15 @@ async function main() {
       failed++;
     }
   }
+
+  // Rows left at "?" or "skip" in a sheet you applied were passed over.
+  const acted = new Set(planned.map((p) => p.row.theater_id));
+  const now = new Date().toISOString();
+  recordDeferrals(
+    rows
+      .filter((r) => r.theater_id && !acted.has(r.theater_id))
+      .map((r) => ({ theaterId: r.theater_id, theaterName: r.theater, at: now }))
+  );
 
   console.log(`\n--- Done ---`);
   console.log(`Applied: ${applied}`);

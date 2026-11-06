@@ -7,6 +7,7 @@ import * as path from 'path';
 import { Theater } from '../../lib/types';
 import { fetchOpenScraperIssues, OpenIssue } from '../../scraper/github';
 import { triageTheater, TriageFinding, Verdict } from './discover';
+import { activeDeferrals, DEFER_DAYS } from '../../lib/repair/defer';
 
 /**
  * Triage pass for the `scraper-issue` backlog. Writes a decision sheet; it
@@ -156,8 +157,16 @@ async function main() {
     const seen = alreadyActedOn();
     const before = targets.length;
     targets = targets.filter((t) => !seen.has(t.theater.id));
-    const skipped = before - targets.length;
-    if (skipped) console.log(`Skipping ${skipped} theater(s) already repaired (--redo to include them)\n`);
+    const repaired = before - targets.length;
+    if (repaired) console.log(`Skipping ${repaired} theater(s) already repaired (--redo to include them)`);
+
+    // A theater you reviewed and passed on is snoozed, not re-queued.
+    const snoozed = hasFlag('include-deferred') ? new Map() : activeDeferrals();
+    const beforeDefer = targets.length;
+    targets = targets.filter((t) => !snoozed.has(t.theater.id));
+    const deferred = beforeDefer - targets.length;
+    if (deferred) console.log(`Skipping ${deferred} theater(s) you passed on within the last ${DEFER_DAYS} days (--include-deferred to see them)`);
+    if (repaired || deferred) console.log();
   }
 
   const limit = arg('limit') ? parseInt(arg('limit')!, 10) : undefined;

@@ -122,7 +122,8 @@ export default function RepairReview({
             ))}
           </ul>
           <p className="text-xs text-muted-foreground mt-3">
-            Re-run <code className="font-mono">npm run repair:triage</code> to refresh this list.
+            Anything you left alone is snoozed for 30 days and will not come back in the next
+            batch. Re-run <code className="font-mono">npm run repair:triage</code> for more.
           </p>
         </div>
       )}
