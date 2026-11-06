@@ -1,15 +1,16 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as readline from 'readline';
-import { commentOnIssue, closeIssue, addLabel } from '../../scraper/github';
+import { applyDecision, RepairAction, RepairTarget } from '../../lib/repair/apply';
 
 /**
- * Applies a reviewed decision sheet from triage.ts.
+ * Applies a reviewed decision sheet from triage.ts. The GUI at /admin/repair
+ * does the same job; both call lib/repair/apply.ts so they cannot drift.
  *
- *   npx tsx scripts/repair/apply.ts repair/decisions-2026-11-05.tsv [--yes]
+ *   npx tsx scripts/repair/apply.ts repair/decisions-2026-11-06.tsv [--yes]
  *   npx tsx scripts/repair/apply.ts <sheet> --accept-recommended <verdict|all>
  *
  * Decision column values:
@@ -25,8 +26,6 @@ import { commentOnIssue, closeIssue, addLabel } from '../../scraper/github';
  *
  * `retire` is never auto-filled by --accept-recommended; it must be typed per row.
  */
-
-type Action = 'url' | 'reactivate' | 'close' | 'playwright' | 'retire' | 'skip';
 
 interface Row {
   decision: string;
@@ -64,7 +63,7 @@ function parseSheet(file: string): Row[] {
 }
 
 /** Resolve a decision cell into a concrete action plus an explicit URL if given. */
-function resolve(row: Row, acceptVerdict: string | undefined): { action: Action; url?: string } | null {
+function resolve(row: Row, acceptVerdict: string | undefined): { action: RepairAction; url?: string } | null {
   let d = row.decision.toLowerCase();
 
   // Bulk-accept a reviewed batch: only the named verdict (or "all"), never retire.
@@ -84,28 +83,29 @@ function resolve(row: Row, acceptVerdict: string | undefined): { action: Action;
     }
     return { action: 'url', url: row.candidate_url };
   }
-  if (d === 'reactivate') return { action: 'reactivate', url: row.current_url };
-  if (['close', 'playwright', 'retire'].includes(d)) return { action: d as Action };
+  if (d === 'reactivate') return { action: 'reactivate' };
+  if (['close', 'playwright', 'retire'].includes(d)) return { action: d as RepairAction };
   if (d === 'review') return null; // triage wants a human; not actionable yet
 
   console.log(`  ! ${row.theater}: unrecognized decision "${row.decision}"; skipping`);
   return null;
 }
 
-/**
- * Target exactly one theater row. Prefer the id from the sheet; theater names
- * are not unique ("Phoenix Theatre" appears twice), so a name-keyed update
- * would silently change both.
- */
-function theaterQuery(supabase: SupabaseClient, row: Row) {
-  if (!row.theater_id) {
-    console.log(`  ! ${row.theater}: no theater_id on the row; falling back to a name match`);
-  }
+function toTarget(row: Row, url?: string): RepairTarget {
+  const issue = parseInt(row.issue, 10);
   return {
-    update: (values: Record<string, unknown>) => {
-      const q = supabase.from('theaters').update(values);
-      return row.theater_id ? q.eq('id', row.theater_id) : q.eq('name', row.theater);
-    },
+    theaterId: row.theater_id,
+    theaterName: row.theater,
+    issueNumber: Number.isFinite(issue) ? issue : null,
+    currentUrl: row.current_url || null,
+    newUrl: url ?? null,
+    foundVia: row.found_via || null,
+    temporary: !!row.temporary,
+    currentDated: parseInt(row.current, 10) || 0,
+    undated: parseInt(row.undated, 10) || 0,
+    staleDated: parseInt(row.past, 10) || 0,
+    sample: row.sample || null,
+    evidence: row.evidence,
   };
 }
 
@@ -133,7 +133,7 @@ async function main() {
   const acceptVerdict = arg('accept-recommended');
   const planned = rows
     .map((row) => ({ row, plan: resolve(row, acceptVerdict) }))
-    .filter((p): p is { row: Row; plan: { action: Action; url?: string } } => p.plan !== null);
+    .filter((p): p is { row: Row; plan: { action: RepairAction; url?: string } } => p.plan !== null);
 
   if (planned.length === 0) {
     console.log(`No actionable rows in ${file}. Mark a decision column and re-run.`);
@@ -162,53 +162,13 @@ async function main() {
   let failed = 0;
 
   for (const { row, plan } of planned) {
-    const issueNum = parseInt(row.issue, 10);
-    console.log(`\n${row.theater} — ${plan.action}`);
-
-    try {
-      if (plan.action === 'url' || plan.action === 'reactivate') {
-        const update: Record<string, unknown> = { is_active: true };
-        if (plan.url) update.audition_page_url = plan.url;
-
-        const { error } = await theaterQuery(supabase, row).update(update);
-        if (error) throw new Error(`DB update failed: ${error.message}`);
-        console.log(`  → DB: is_active=true${plan.url ? `, url=${plan.url}` : ''}`);
-
-        if (Number.isFinite(issueNum)) {
-          const body = plan.action === 'reactivate'
-            ? `Repaired by the theater-repair workflow.\n\nThe URL on record is reachable, so the deactivation no longer applies. Theater re-activated; no URL change.\n\n**URL:** ${row.current_url}\n**Parsed:** ${row.current} current audition(s), ${row.undated} undated, ${row.past} past\n**Finding:** ${row.evidence}`
-            : `Repaired by the theater-repair workflow.\n\n**Old URL:** ${row.current_url}\n**New URL:** ${plan.url}\n**Found via:** ${row.found_via || 'n/a'}\n**Parsed:** ${row.current} current audition(s), ${row.undated} undated, ${row.past} past\n**Sample:** ${row.sample || 'n/a'}\n\nTheater re-activated and will be picked up by the next scrape.${row.temporary ? '\n\n⚠️ This URL looks tied to a single show or season, so expect it to break again once that run ends.' : ''}`;
-          await commentOnIssue(issueNum, body);
-          await closeIssue(issueNum, 'completed');
-          console.log(`  → Issue #${issueNum} commented and closed`);
-        }
-      } else if (plan.action === 'retire') {
-        const reason = `Retired by theater-repair workflow on ${new Date().toISOString().split('T')[0]}: ${row.evidence}`;
-        const { error } = await theaterQuery(supabase, row).update({ is_active: false, notes: reason });
-        if (error) throw new Error(`DB update failed: ${error.message}`);
-        console.log(`  → DB: is_active=false, reason recorded in notes`);
-
-        if (Number.isFinite(issueNum)) {
-          await commentOnIssue(issueNum, `Retired by the theater-repair workflow.\n\n**URL on record:** ${row.current_url}\n**Finding:** ${row.evidence}\n\nNo working audition page could be found, so this theater is deactivated. Re-open if it comes back.`);
-          await closeIssue(issueNum, 'not_planned');
-          console.log(`  → Issue #${issueNum} closed as not-planned`);
-        }
-      } else if (plan.action === 'playwright') {
-        if (Number.isFinite(issueNum)) {
-          await addLabel(issueNum, 'needs-playwright');
-          await commentOnIssue(issueNum, `Triaged by the theater-repair workflow: **bot-blocked**.\n\n**URL:** ${row.current_url}\n**Finding:** ${row.evidence}\n\nPlain \`fetch\` cannot reach this site. Tagged \`needs-playwright\`; the issue stays open and the theater stays inactive until the Playwright fetch path exists.`);
-          console.log(`  → Issue #${issueNum} tagged needs-playwright, left open`);
-        }
-      } else if (plan.action === 'close') {
-        if (Number.isFinite(issueNum)) {
-          await commentOnIssue(issueNum, `Closed by the theater-repair workflow: the underlying condition no longer holds.\n\n**Finding:** ${row.evidence}`);
-          await closeIssue(issueNum, 'completed');
-          console.log(`  → Issue #${issueNum} closed`);
-        }
-      }
+    const result = await applyDecision(supabase, plan.action, toTarget(row, plan.url));
+    console.log(`\n${result.theaterName} — ${result.action}`);
+    if (result.ok) {
+      console.log(`  → ${result.detail}`);
       applied++;
-    } catch (err) {
-      console.error(`  ! FAILED: ${err}`);
+    } else {
+      console.error(`  ! FAILED: ${result.detail}`);
       failed++;
     }
   }
