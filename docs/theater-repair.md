@@ -88,23 +88,23 @@ is all there is, and expect the issue to come back.
 | `CANDIDATE_WEAK` | found an audition page, nothing currently dated | `review` |
 | `BLOCKED` | 403 — bot-blocked, plain `fetch` cannot read it | `playwright` |
 | `ORIGIN_DEAD` | the domain does not resolve | `retire` |
-| `STALE_LISTINGS_ONLY` | the URL on record is a real audition page, but lists only past calls | `skip` |
+| `STALE_LISTINGS_ONLY` | the URL on record is a real audition page, but lists only past calls | `reactivate` |
 | `NO_CANDIDATE` | site is alive but exposes no audition page | `review` |
 
 `NO_CANDIDATE` deliberately does **not** recommend retirement. A live site with
 no audition page is usually a theater between seasons, not a dead one.
 
-### `STALE_LISTINGS_ONLY` is a trap — read this before re-activating
+### `STALE_LISTINGS_ONLY`
 
-`scraper/index.ts` deactivates any theater whose parsed audition dates are all
-before a hardcoded `2025-01-01` dateline. That dateline is now about two years
-stale, so a theater with a perfectly good audition page showing a 2024 call gets
-deactivated and re-issued.
+The URL on record is a real audition page that lists only past calls. The URL
+is not wrong — the theater simply has not posted a new audition yet.
 
-The URL is not wrong for these, so `url` and `reactivate` are both the wrong
-call: the next scrape deactivates the theater again and re-files the identical
-issue, forever. Until that rule is changed to a relative window, leave these on
-`skip`. Waterfront Playhouse (#146) is the worked example.
+Re-activate these. The scraper used to deactivate a theater whose parsed dates
+were all before a hardcoded `2025-01-01` dateline, which made re-activating
+them pointless: the next run deactivated them again and re-filed the identical
+issue. That rule is gone. Deactivation is now reserved for pages we genuinely
+cannot read, so a dormant theater stays active and keeps being checked until it
+posts its next call. Old rows are still stored and land on `/past`.
 
 ## Decision column
 
@@ -161,6 +161,10 @@ npx tsx scraper/index.ts
 - The scraper does not close an issue when a page recovers on its own, so the
   `close` path above stays manual. Auto-closing on a successful scrape would
   make the loop self-clearing.
+- A live listing whose only date is a submission deadline ("due by November
+  22nd") parses with no `audition_date_start`, so it counts as undated rather
+  than current and lands in `CANDIDATE_WEAK`. Related: the undated-handling
+  backlog items (#155, #156).
 - `Missing audition URL` discovery (98 theaters) has no tooling. It needs a
   search step; there is no `website` column to work from, and only 5 of the 98
   have anything in `notes`.

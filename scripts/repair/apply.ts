@@ -176,7 +176,7 @@ async function main() {
 
         if (Number.isFinite(issueNum)) {
           const body = plan.action === 'reactivate'
-            ? `Repaired by the theater-repair workflow.\n\nThe URL on record responds again and parses current auditions, so the deactivation was stale. Theater re-activated; no URL change.\n\n**URL:** ${row.current_url}\n**Evidence:** ${row.evidence}`
+            ? `Repaired by the theater-repair workflow.\n\nThe URL on record is reachable, so the deactivation no longer applies. Theater re-activated; no URL change.\n\n**URL:** ${row.current_url}\n**Parsed:** ${row.current} current audition(s), ${row.undated} undated, ${row.past} past\n**Finding:** ${row.evidence}`
             : `Repaired by the theater-repair workflow.\n\n**Old URL:** ${row.current_url}\n**New URL:** ${plan.url}\n**Found via:** ${row.found_via || 'n/a'}\n**Parsed:** ${row.current} current audition(s), ${row.undated} undated, ${row.past} past\n**Sample:** ${row.sample || 'n/a'}\n\nTheater re-activated and will be picked up by the next scrape.${row.temporary ? '\n\n⚠️ This URL looks tied to a single show or season, so expect it to break again once that run ends.' : ''}`;
           await commentOnIssue(issueNum, body);
           await closeIssue(issueNum, 'completed');

@@ -384,14 +384,14 @@ export async function triageTheater(
   if (liveCandidates.length === 0) {
     const linkCount = candidates.filter((c) => c.source !== 'guess').length;
 
-    // The URL on record is a working audition page with nothing current on it.
-    // That is a dormant theater, not a broken link — and re-activating it as-is
-    // just gets it deactivated again by the pre-2025 dateline rule in
-    // scraper/index.ts, which re-files this very issue.
+    // The URL on record is a working audition page with nothing current on it:
+    // a dormant theater, not a broken link. Safe to re-activate -- the scraper
+    // no longer deactivates for stale listings, so it will simply keep checking
+    // until the theater posts its next call.
     if (currentUrlIsAuditionPage) {
       return { ...base, verdict: 'STALE_LISTINGS_ONLY', recommendedUrl: theater.audition_page_url,
         candidateSource: 'current',
-        evidence: `The URL on record is a live audition page but lists nothing current (${base.undated} undated, ${base.staleDated} past). The URL is not wrong — the theater has not posted a new call. Re-activating without changing the scraper's pre-2025 dateline rule will just deactivate it again next run.`, probes };
+        evidence: `The URL on record is a live audition page but lists nothing current (${base.undated} undated, ${base.staleDated} past). The URL is not wrong — the theater has not posted a new call. Re-activate and let the scraper keep watching it.`, probes };
     }
 
     return { ...base, verdict: 'NO_CANDIDATE', recommendedUrl: null,

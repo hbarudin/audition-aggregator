@@ -25,7 +25,7 @@ const RECOMMENDATION: Record<Verdict, string> = {
   CANDIDATE_WEAK: 'review',
   BLOCKED: 'playwright',
   ORIGIN_DEAD: 'retire',
-  STALE_LISTINGS_ONLY: 'skip',
+  STALE_LISTINGS_ONLY: 'reactivate',
   NO_CANDIDATE: 'review',
 };
 

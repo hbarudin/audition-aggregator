@@ -69,16 +69,23 @@ async function scrapeTheater(theater: Theater, openIssues: Set<string>): Promise
 
   const auditions = await parseAuditions(pageText, theater.name);
 
-  // If Claude found auditions but every dated one is from before 2025, the page is stale.
+  // A page listing only past auditions is dormant, not broken. This used to
+  // deactivate the theater against a hardcoded 2025-01-01 dateline, which was
+  // wrong three ways: the wall never moved, so what counted as "stale" drifted
+  // further from the truth every month; a correct URL got reported as a broken
+  // page; and worst, deactivating cost us the theater's next season, because a
+  // deactivated theater is never scraped again and so the call we were waiting
+  // for could never be picked up.
+  //
+  // Deactivation is now reserved for pages we genuinely cannot read (404,
+  // soft-404). Old rows are still stored and still truthful: the app derives
+  // freshness from the date columns (lib/expiry.ts), so they land on /past and
+  // never surface as current.
   const datedAuditions = auditions.filter((a) => a.audition_date_start != null);
-  const allPreDateline = datedAuditions.length > 0 && datedAuditions.every((a) => a.audition_date_start! < '2025-01-01');
-  if (allPreDateline) {
-    const deactivated = await deactivateTheater(
-      theater,
-      `All parsed audition dates are from before 2025 (oldest: ${datedAuditions[0].audition_date_start})`,
-      openIssues
-    );
-    return { auditions: 0, deactivated };
+  const today = new Date().toISOString().split('T')[0];
+  if (datedAuditions.length > 0 && datedAuditions.every((a) => a.audition_date_start! < today)) {
+    const latest = datedAuditions.reduce((a, b) => (a.audition_date_start! > b.audition_date_start! ? a : b));
+    console.log(`  → Dormant: every parsed audition date has passed (latest: ${latest.audition_date_start})`);
   }
 
   // Replace this theater's auditions with fresh data from this scrape run
