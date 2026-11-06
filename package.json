@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "scrape": "tsx scraper/index.ts",
+    "repair:triage": "tsx scripts/repair/triage.ts",
+    "repair:apply": "tsx scripts/repair/apply.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.5",

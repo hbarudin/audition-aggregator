@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Theater-repair triage: keep the decision sheets as the audit trail, drop the
+# bulky per-probe evidence dumps.
+repair/*.evidence.json
