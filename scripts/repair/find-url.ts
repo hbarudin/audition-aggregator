@@ -16,7 +16,11 @@ import { parseAuditions } from '../../scraper/parse';
  * real failure mode here, and validation alone would not catch it.
  */
 
-const MODEL = 'claude-opus-5';
+// Sonnet rather than Opus: this is a bulk lookup over 98 theaters, and the
+// judgement it needs is narrow -- find a page, or say you could not. Nothing
+// the model returns is trusted anyway; the fetch, the audition-page check and
+// the identity check below are what decide whether a URL is adopted.
+const MODEL = 'claude-sonnet-5';
 const MAX_TOKENS = 16_000;
 
 let _client: Anthropic | null = null;
