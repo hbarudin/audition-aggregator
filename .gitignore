@@ -44,4 +44,9 @@ next-env.d.ts
 # that track what has been applied, passed over, or snoozed. All generated
 # locally and needed by the workflow -- do not delete the directory -- but the
 # durable record of each repair is the comment left on its GitHub issue.
-repair/
+#
+# Anchored with a leading slash: unanchored, `repair/` matches a directory of
+# that name at any depth, which silently swallowed every new file added under
+# scripts/repair/. The scripts already committed there stayed tracked and hid
+# it -- git keeps ignoring a path it already tracks.
+/repair/
