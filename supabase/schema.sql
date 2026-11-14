@@ -6,6 +6,14 @@ create table theaters (
   name        text not null,
   city        text not null default '',
   state       text not null default '',
+
+  -- City centroid, filled from the offline table in lib/geo. Nullable on
+  -- purpose: a theater whose city will not geocode keeps null coordinates and
+  -- still appears everywhere except the radius filter. Added 2026-11-14;
+  -- runnable slice: migration-2026-11-14-theater-coordinates.sql
+  latitude    double precision,
+  longitude   double precision,
+
   audition_page_url text,
   notes       text default '',
   is_active   boolean not null default true,

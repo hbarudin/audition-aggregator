@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { isAdmin } from '@/lib/admin';
+import { geocodeCityState } from '@/lib/geo';
 
 function serverClient() {
   return createClient(
@@ -30,9 +31,23 @@ export async function updateTheater(_prevState: UpdateState, formData: FormData)
     return { error: 'Name, city, and state are required.' };
   }
 
+  // Re-geocoded on every save, since the city is what is being edited. A city
+  // that does not resolve clears the coordinates rather than leaving the old
+  // city's ones behind: a wrong location is worse than no location.
+  const coordinates = geocodeCityState(city, state);
+
   const { error } = await serverClient()
     .from('theaters')
-    .update({ name, city, state, audition_page_url, notes, is_active })
+    .update({
+      name,
+      city,
+      state,
+      latitude: coordinates?.latitude ?? null,
+      longitude: coordinates?.longitude ?? null,
+      audition_page_url,
+      notes,
+      is_active,
+    })
     .eq('id', id);
 
   if (error) return { error: error.message };

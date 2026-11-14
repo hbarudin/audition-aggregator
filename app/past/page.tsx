@@ -18,7 +18,7 @@ export default async function PastAuditions({
 
   let query = supabase
     .from('auditions')
-    .select('*, theater:theaters(name, city, state)')
+    .select('*, theater:theaters(name, city, state, latitude, longitude)')
     .or(pastFilter());
 
   if (sort === 'theater_name') {

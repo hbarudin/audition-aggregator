@@ -3,6 +3,9 @@ export interface Theater {
   name: string;
   city: string;
   state: string;
+  // City centroid; null when the city could not be geocoded. See lib/geo.
+  latitude: number | null;
+  longitude: number | null;
   audition_page_url: string | null;
   notes: string;
   is_active: boolean;

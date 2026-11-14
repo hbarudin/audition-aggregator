@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
+import { geocodeCityState } from '@/lib/geo';
 
 function serverClient() {
   return createClient(
@@ -57,9 +58,22 @@ export async function addTheater(_prevState: FormState, formData: FormData): Pro
     return { error: 'Name, city, and state are required.' };
   }
 
+  // Null when the city is not in the table. The row is still worth having;
+  // scripts/geo/backfill-coordinates.ts picks it up if the city is corrected.
+  const coordinates = geocodeCityState(city, state);
+
   const { error } = await serverClient()
     .from('theaters')
-    .insert({ name, city, state, audition_page_url, notes, is_active: true });
+    .insert({
+      name,
+      city,
+      state,
+      latitude: coordinates?.latitude ?? null,
+      longitude: coordinates?.longitude ?? null,
+      audition_page_url,
+      notes,
+      is_active: true,
+    });
 
   if (error) return { error: error.message };
 

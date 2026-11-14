@@ -15,9 +15,29 @@ interface Props {
   direction: string;
   basePath: string;
   query?: string;
+  /**
+   * Miles from the location the reader entered, keyed by audition id. Absent
+   * entirely when no location is set, which is what hides the column. The
+   * other columns sort through the URL; this one cannot, because the distances
+   * only exist in the browser -- so it gets its own handler.
+   */
+  distances?: Map<string, number>;
+  distanceSort?: 'asc' | 'desc';
+  onSortByDistance?: () => void;
 }
 
-export default function AuditionTable({ auditions, sort, direction, basePath, query = '' }: Props) {
+export default function AuditionTable({
+  auditions,
+  sort,
+  direction,
+  basePath,
+  query = '',
+  distances,
+  distanceSort,
+  onSortByDistance,
+}: Props) {
+  const showDistance = distances !== undefined;
+
   return (
     <>
     <p className="mb-2 text-xs text-muted-foreground/80 flex items-center gap-3">
@@ -28,10 +48,11 @@ export default function AuditionTable({ auditions, sort, direction, basePath, qu
     <div className="rounded-lg border border-border overflow-hidden">
       <Table className="table-fixed w-full">
         <colgroup>
-          <col className="w-[24%]" />
-          <col className="w-[24%]" />
-          <col className="w-[22%]" />
-          <col className="w-[10%]" />
+          <col className={showDistance ? 'w-[22%]' : 'w-[24%]'} />
+          <col className={showDistance ? 'w-[21%]' : 'w-[24%]'} />
+          <col className={showDistance ? 'w-[19%]' : 'w-[22%]'} />
+          {showDistance && <col className="w-[9%]" />}
+          <col className={showDistance ? 'w-[9%]' : 'w-[10%]'} />
           <col className="w-[10%]" />
           <col className="w-[10%]" />
         </colgroup>
@@ -46,6 +67,9 @@ export default function AuditionTable({ auditions, sort, direction, basePath, qu
             <SortableHead column="audition_dates" sort={sort} direction={direction} basePath={basePath}>
               Audition dates
             </SortableHead>
+            {showDistance && (
+              <DistanceHead direction={distanceSort} onClick={onSortByDistance} />
+            )}
             <SortableHead column="is_paid" sort={sort} direction={direction} basePath={basePath} center>
               Paid
             </SortableHead>
@@ -90,6 +114,11 @@ export default function AuditionTable({ auditions, sort, direction, basePath, qu
               <TableCell className="px-4 py-3 text-foreground/75 whitespace-normal">
                 {a.audition_dates ?? <span className="text-muted-foreground/50">—</span>}
               </TableCell>
+              {showDistance && (
+                <TableCell className="px-4 py-3 text-center tabular-nums text-foreground/75">
+                  <Distance miles={distances.get(a.id)} />
+                </TableCell>
+              )}
               <TableCell className="px-4 py-3 text-center">
                 <Flag value={a.is_paid} />
               </TableCell>
@@ -152,6 +181,40 @@ function SortableHead({
       </Link>
     </TableHead>
   );
+}
+
+/**
+ * Mirrors SortableHead's look, but toggles in place instead of navigating:
+ * following a link would drop the location the distances were measured from.
+ */
+function DistanceHead({
+  direction,
+  onClick,
+}: {
+  direction?: 'asc' | 'desc';
+  onClick?: () => void;
+}) {
+  return (
+    <TableHead className="p-0 text-center">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full flex items-center justify-center gap-1 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-colors ${
+          direction ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/75'
+        }`}
+      >
+        Distance
+        <span className="text-[10px]">
+          {direction ? (direction === 'asc' ? '↑' : '↓') : '↕'}
+        </span>
+      </button>
+    </TableHead>
+  );
+}
+
+function Distance({ miles }: { miles?: number }) {
+  if (miles === undefined) return <span className="text-muted-foreground/50">—</span>;
+  return <span>{Math.round(miles)} mi</span>;
 }
 
 function Flag({ value }: { value: boolean | null }) {

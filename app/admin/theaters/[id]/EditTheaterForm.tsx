@@ -55,6 +55,23 @@ export default function EditTheaterForm({ theater }: { theater: Theater }) {
         </div>
       </div>
 
+      {/* Coordinates are derived from the city on save, never typed here, so
+          this reports rather than edits. A theater reading "not geocoded" is
+          missing from the radius filter until its city is corrected. */}
+      <p className="-mt-3 text-xs text-muted-foreground/80">
+        {theater.latitude != null && theater.longitude != null ? (
+          <>
+            Geocoded to {theater.latitude.toFixed(3)}, {theater.longitude.toFixed(3)} — re-derived
+            from the city on every save.
+          </>
+        ) : (
+          <>
+            Not geocoded: this city is not in the lookup table, so this theater is left out of the
+            radius filter. Check the spelling.
+          </>
+        )}
+      </p>
+
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-foreground/75">Audition page URL</label>
         <input

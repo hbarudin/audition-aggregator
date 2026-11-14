@@ -41,6 +41,10 @@ npm run lint     # ESLint
 
 npx tsx scraper/index.ts                  # full scrape
 npx tsx scripts/test-scraper.ts [url]     # smoke test one page
+
+npx tsx scripts/geo/backfill-coordinates.ts          # plan the geocode backfill
+npx tsx scripts/geo/backfill-coordinates.ts --apply  # write it
+npx tsx scripts/geo/build-us-places.ts               # rebuild the lookup table
 ```
 
 ## Layout
@@ -49,10 +53,38 @@ npx tsx scripts/test-scraper.ts [url]     # smoke test one page
 app/              routes: /, /past, /theaters, /add-theater, /admin/*
 components/       UI
 lib/              Supabase client, types, expiry rules, admin session
+lib/geo/          offline US ZIP and city lookup, haversine distance
 scraper/          fetch → parse (Claude) → write; entry point is index.ts
 scripts/          seeding and one-off migrations
 supabase/         schema.sql and seed data
 ```
+
+## Location search
+
+The radius filter ("within 50 miles of 08540") measures from city centroids held
+in `theaters.latitude` / `theaters.longitude`, against whatever the reader types
+in the location box. Both ends are resolved against `lib/geo/us-places.generated.ts`,
+a committed 1.9 MB table of every US ZIP code and ~36,000 place names built from
+the [GeoNames](https://www.geonames.org/) dumps (CC BY 4.0). No geocoding API is
+called, at build time or at request time.
+
+The table is server-side only -- the browser asks for one pair of coordinates
+through a server action and does the distance arithmetic itself, over rows it has
+already loaded. Rebuild the table with `scripts/geo/build-us-places.ts` when the
+GeoNames dumps move on; nothing depends on doing so regularly.
+
+A handful of real places are filed by GeoNames under another name -- West
+Windsor NJ as Princeton Junction, Sanibel Island FL as Sanibel. Those are listed
+in `lib/geo/aliases.ts`, which both ends of the lookup consult, so a reader can
+type the name a theater is stored under. Aliases are not for typos: a theater
+stored as "Brimingham, AL" has wrong data in a column the site prints, and the
+fix is to correct the row.
+
+A theater whose city still will not resolve (a typo, or scraper debris in the
+city column) keeps null coordinates. It appears everywhere it did before and is
+counted but not listed while a radius is on, since there is no honest way to say
+whether it falls inside one. `scripts/geo/backfill-coordinates.ts` prints those
+rows, which doubles as a worklist for fixing the city on `/admin/theaters/[id]`.
 
 ## Admin access
 
