@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+export const PARSE_MODEL = 'claude-haiku-4-5-20251001';
+
 // A ceiling, not a reservation, so headroom is free. It needs to be generous
 // because the failure is all-or-nothing rather than partial: a response cut
 // mid-object leaves unbalanced JSON, JSON.parse throws, and the catch below
@@ -8,7 +10,7 @@ const MAX_TOKENS = 8192;
 
 // Created lazily so the API key is read after dotenv has loaded.
 let _client: Anthropic | null = null;
-function getClient() {
+export function getParseClient() {
   if (!_client) _client = new Anthropic();
   return _client;
 }
@@ -32,8 +34,8 @@ export async function parseAuditions(
 ): Promise<ParsedAudition[]> {
   const today = new Date().toISOString().split('T')[0];
 
-  const response = await getClient().messages.create({
-    model: 'claude-haiku-4-5-20251001',
+  const response = await getParseClient().messages.create({
+    model: PARSE_MODEL,
     max_tokens: MAX_TOKENS,
     // Instructions are in the system prompt, scraped content is in the user turn.
     // This separation limits prompt injection from malicious page content.
@@ -69,6 +71,8 @@ Field rules:
 - is_paid: true if any compensation is mentioned, false if explicitly volunteer/unpaid, null if unknown
 - non_union_ok: true if non-union actors can audition (including separate non-equity calls or open calls), false if union/AEA members only, null if not mentioned
 - housing: "yes" if housing is offered, "no" if explicitly not offered, "unknown" if not mentioned
+- A listing with no date is still a listing. If the page names a specific show, season, or audition event but gives no date — because the date sits behind a signup form, an application link, or a linked breakdown — return it with null dates rather than omitting it.
+- Do NOT return an entry for a page that only describes how auditioning works in general ("submit a headshot and resume", "auditions are by appointment", "we hold EPAs each spring") without naming a specific show, season, or audition event.
 - If no auditions are currently listed, return { "auditions": [] }`,
     messages: [
       {
@@ -118,7 +122,7 @@ function validateAudition(raw: unknown): ParsedAudition | null {
     return s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
   };
 
-  return {
+  const row: ParsedAudition = {
     show_name: typeof a.show_name === 'string' ? a.show_name.slice(0, 500) : null,
     audition_dates: typeof a.audition_dates === 'string' ? a.audition_dates.slice(0, 500) : null,
     audition_date_start: isoDate(a.audition_date_start),
@@ -130,4 +134,19 @@ function validateAudition(raw: unknown): ParsedAudition | null {
     housing,
     is_expired: a.is_expired === true,
   };
+
+  // A row needs to say *something*: either what you would be auditioning for,
+  // or when. With neither it renders as a blank line in the app, and because
+  // lib/expiry.ts keeps undated rows listed, one with no performance date
+  // never ages out either. Six such rows are already live. Telling the model
+  // to keep undated listings makes this shape much easier to produce, so the
+  // floor is enforced here rather than left to the prompt.
+  const named = row.show_name !== null && row.show_name.trim() !== '';
+  const dated =
+    row.audition_dates !== null ||
+    row.audition_date_start !== null ||
+    row.audition_date_end !== null;
+  if (!named && !dated) return null;
+
+  return row;
 }
