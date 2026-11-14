@@ -14,7 +14,12 @@ function matches(audition: Audition, query: string): boolean {
   return haystack.includes(needle);
 }
 
-const RADII = [25, 50, 100, 200];
+// Theaters are placed at their city's centroid, not their street address, so
+// the error is roughly "how big is this town" -- a venue in the San Fernando
+// Valley is stored as Los Angeles and measures from downtown. That is noise at
+// 50 miles and a real distortion at 10, which is why the list starts there
+// rather than lower.
+const RADII = [10, 25, 50, 75, 100, 150, 200, 300];
 
 interface Props {
   auditions: Audition[];
