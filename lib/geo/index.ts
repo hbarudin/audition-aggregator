@@ -23,6 +23,7 @@ export interface GeocodeResult extends Coordinates {
 // are kept for the life of the process.
 let zipIndex: Map<string, Coordinates> | null = null;
 let placeIndex: Map<string, Coordinates> | null = null;
+let cityIndex: Map<string, string[]> | null = null;
 
 function parse(table: string): Map<string, Coordinates> {
   const index = new Map<string, Coordinates>();
@@ -48,6 +49,24 @@ function zips() {
 
 function places() {
   return (placeIndex ??= parse(PLACES));
+}
+
+// Normalized city name -> the states that have a town by that name, derived
+// from the place keys rather than stored: it is the same 35,701 rows read a
+// second way, and only a reader who types a bare town ever needs it.
+function cityStates() {
+  if (cityIndex) return cityIndex;
+  const index = new Map<string, string[]>();
+  for (const key of places().keys()) {
+    const bar = key.lastIndexOf('|');
+    if (bar === -1) continue;
+    const city = key.slice(0, bar);
+    const existing = index.get(city);
+    if (existing) existing.push(key.slice(bar + 1));
+    else index.set(city, [key.slice(bar + 1)]);
+  }
+  for (const states of index.values()) states.sort();
+  return (cityIndex = index);
 }
 
 /**
@@ -110,6 +129,54 @@ export function geocodeQuery(input: string): GeocodeResult | null {
     ...hit,
     label: `${titleCase(city)}, ${normalizeState(state)}`,
   };
+}
+
+/** A town name that could be any of several places. */
+export interface PlaceChoices {
+  /** Title-cased, as it should be shown and as `geocodeQuery` will read it back. */
+  city: string;
+  /**
+   * One per state that has a town by this name, alphabetical -- twenty of them
+   * for Princeton, twenty-eight for Clinton. Coordinates ride along so the
+   * caller can rank the choices against what it is showing rather than make
+   * the reader guess which Princeton the site has listings near.
+   */
+  places: Array<Coordinates & { state: string }>;
+}
+
+/**
+ * The states a bare town name could refer to.
+ *
+ * `geocodeQuery` refuses a bare town on purpose -- there are 20 Princetons --
+ * but refusing is only half an answer. This is the other half: the reader
+ * names the town, the lookup names the states it could be in, and the choice
+ * stays with the reader instead of being guessed at.
+ *
+ * Three readings, first hit wins: the whole string, so two-word towns survive
+ * ("New York"); the part before the last comma; and the string without its
+ * last word, which is where an unknown or mistyped state lands ("Springfield,
+ * Masachusetts"). Returns null when no reading names a town we hold.
+ */
+export function suggestPlaces(input: string): PlaceChoices | null {
+  const query = input.trim();
+  if (!query) return null;
+
+  const readings = [query];
+  const comma = query.lastIndexOf(',');
+  if (comma > 0) readings.push(query.slice(0, comma));
+  const words = query.split(/\s+/);
+  if (words.length > 1) readings.push(words.slice(0, -1).join(' '));
+
+  for (const reading of readings) {
+    const city = normalizeCity(reading);
+    const states = city ? cityStates().get(city) : undefined;
+    if (!states) continue;
+    return {
+      city: titleCase(city),
+      places: states.map((state) => ({ state, ...places().get(`${city}|${state}`)! })),
+    };
+  }
+  return null;
 }
 
 function titleCase(value: string): string {
