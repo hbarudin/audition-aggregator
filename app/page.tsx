@@ -40,22 +40,22 @@ export default async function Home({
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-10">
-      <header className="mb-8 flex items-start justify-between">
-        <div>
+      <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Audition Aggregator</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Non-union theater auditions, updated daily
             {lastUpdated && <span className="text-muted-foreground/80"> · Last scraped {lastUpdated}</span>}
           </p>
         </div>
-        <div className="flex items-center gap-4 mt-1">
-          <Link href="/add-theater" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:mt-1 sm:shrink-0">
+          <Link href="/add-theater" className="py-1.5 sm:py-0 text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
             + Add theater
           </Link>
-          <Link href="/theaters" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
+          <Link href="/theaters" className="py-1.5 sm:py-0 text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
             All theaters
           </Link>
-          <Link href="/past" className="text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
+          <Link href="/past" className="py-1.5 sm:py-0 text-sm text-muted-foreground/80 hover:text-muted-foreground transition-colors">
             Past auditions →
           </Link>
         </div>

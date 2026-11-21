@@ -25,8 +25,8 @@ export default async function TheatersPage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
-      <header className="mb-8 flex items-start justify-between">
-        <div>
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">All theaters</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {theaters.length} theaters across {stateCount} states

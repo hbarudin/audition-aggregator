@@ -48,8 +48,8 @@ export default function AddTheaterPage() {
 
   return (
     <main className="max-w-xl mx-auto px-4 py-10">
-      <header className="mb-8 flex items-start justify-between">
-        <div>
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Add theater</h1>
           <p className="text-muted-foreground text-sm mt-1">Add a new theater to the scraper</p>
         </div>
@@ -84,7 +84,7 @@ export default function AddTheaterPage() {
         </div>
 
         <div className="flex gap-3">
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <label className="block text-sm font-medium text-foreground/75 mb-1.5" htmlFor="city">
               City <span className="text-destructive/70">*</span>
             </label>

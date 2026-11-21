@@ -167,25 +167,28 @@ export default function SearchableAuditionTable({ auditions, sort, direction, ba
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4">
+      {/* Each control takes a full line on a phone and they share a row from
+          sm up. Unwrapped, these three held one 635px line open and pushed the
+          whole page into sideways scrolling. */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <input
           type="search"
           placeholder="Search theaters or shows…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 rounded-md border border-border px-3 py-1.5 text-sm placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+          className="w-full sm:w-auto sm:flex-1 rounded-md border border-border px-3 py-1.5 text-sm placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
         />
         <select
           value={selectedState}
           onChange={(e) => setSelectedState(e.target.value)}
-          className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground/75 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+          className="w-full sm:w-auto rounded-md border border-border px-3 py-1.5 text-sm text-foreground/75 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
         >
           <option value="">All states</option>
           {states.map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex w-full sm:w-auto items-center gap-1.5 sm:shrink-0">
           <label htmlFor="from-date" className="text-sm text-muted-foreground/80 whitespace-nowrap">
             {/* The full phrasing wants ~160px it does not have on a phone. */}
             <span className="sm:hidden">On or after</span>
@@ -196,12 +199,12 @@ export default function SearchableAuditionTable({ auditions, sort, direction, ba
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground/75 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+            className="min-w-0 flex-1 sm:flex-none rounded-md border border-border px-3 py-1.5 text-sm text-foreground/75 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
           />
           {fromDate && (
             <button
               onClick={() => setFromDate('')}
-              className="text-muted-foreground/80 hover:text-muted-foreground text-lg leading-none"
+              className="shrink-0 px-1 text-muted-foreground/80 hover:text-muted-foreground text-lg leading-none"
               aria-label="Clear date filter"
             >
               ×
