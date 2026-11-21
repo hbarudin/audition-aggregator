@@ -4,7 +4,16 @@ dotenv.config({ path: '.env.local' });
 import { createClient } from '@supabase/supabase-js';
 import { Theater } from '../lib/types';
 import { fetchPage } from './fetch';
-import { parseAuditions } from './parse';
+import { buildParseRequest } from './parse';
+import {
+  ParseRequest,
+  cancelBatch,
+  collectBatch,
+  findPendingBatches,
+  hasEnded,
+  pollUntilEnded,
+  submitBatch,
+} from './batch';
 import { fileIssue, fetchOpenScraperIssueTitles } from './github';
 
 const supabase = createClient(
@@ -47,70 +56,89 @@ async function deactivateTheater(theater: Theater, reason: string, openIssues: S
   return true;
 }
 
-interface ScrapeResult {
-  auditions: number;
-  deactivated: boolean;
+/**
+ * Settle anything a previous run left owed, before this run submits work of
+ * its own. Order matters: resolving first means a slow batch can only ever
+ * write data that is older than nothing, never older than something.
+ */
+async function resolveOwedBatches(): Promise<void> {
+  const pending = await findPendingBatches(supabase);
+  if (pending.length === 0) return;
+
+  console.log(`${pending.length} batch(es) from a previous run were never resolved:\n`);
+
+  for (const batch of pending) {
+    const age = Math.round((Date.now() - new Date(batch.submitted_at).getTime()) / 3_600_000);
+    console.log(`Batch ${batch.id} (${batch.request_count} requests, submitted ${age}h ago)`);
+
+    if (await hasEnded(batch.id)) {
+      const summary = await collectBatch(supabase, batch.id);
+      console.log(
+        `  → Collected: ${summary.auditions} audition(s) across ${summary.theatersWritten} theater(s), ${summary.failed} failed, ${summary.skipped} skipped\n`
+      );
+    } else {
+      console.log(`  → Still processing; cancelling in favour of this run's fresher pages`);
+      await cancelBatch(supabase, batch.id);
+      console.log();
+    }
+  }
 }
 
-async function scrapeTheater(theater: Theater, openIssues: Set<string>): Promise<ScrapeResult> {
-  const { text: pageText, status } = await fetchPage(theater.audition_page_url!);
+interface FetchPhase {
+  requests: ParseRequest[];
+  fetchFailed: number;
+  deactivated: number;
+}
 
-  if (status === 404) {
-    const deactivated = await deactivateTheater(theater, `HTTP 404 — page does not exist`, openIssues);
-    return { auditions: 0, deactivated };
+/**
+ * Fetch every page and build the parse request for it. Everything that does
+ * not need the model -- 404s, soft-404s, deactivation, issue filing -- is
+ * settled here, synchronously, exactly as it was before batching.
+ */
+async function fetchAll(theaters: Theater[], openIssues: Set<string>): Promise<FetchPhase> {
+  const requests: ParseRequest[] = [];
+  let fetchFailed = 0;
+  let deactivated = 0;
+
+  for (let i = 0; i < theaters.length; i++) {
+    const theater = theaters[i];
+    console.log(`[${i + 1}/${theaters.length}] ${theater.name}`);
+
+    // An open issue used to skip the theater entirely. That was redundant --
+    // a genuinely broken theater is already is_active = false and never
+    // reaches this loop -- and it quietly froze every theater someone
+    // re-activated to retry: the open issue kept it from ever being scraped
+    // again, so the issue itself became the thing keeping it broken.
+    // Duplicate issues are already prevented inside deactivateTheater.
+    if (openIssues.has(`Broken page: ${theater.name}`)) {
+      console.log(`  → Has an open tracker issue; re-trying it anyway`);
+    }
+
+    try {
+      const { text: pageText, status } = await fetchPage(theater.audition_page_url!);
+
+      if (status === 404) {
+        if (await deactivateTheater(theater, `HTTP 404 — page does not exist`, openIssues)) deactivated++;
+      } else if (!pageText) {
+        fetchFailed++;
+      } else if (PAGE_NOT_FOUND_RE.test(pageText.slice(0, 2_000))) {
+        if (await deactivateTheater(theater, `Page content matches "page not found" pattern`, openIssues)) deactivated++;
+      } else {
+        requests.push({
+          theaterId: theater.id,
+          params: buildParseRequest(pageText, theater.name),
+        });
+        console.log(`  → Queued for parsing (${pageText.length} chars)`);
+      }
+    } catch (err) {
+      console.log(`  → Unexpected error: ${err}`);
+      fetchFailed++;
+    }
+
+    if (i < theaters.length - 1) await sleep(DELAY_MS);
   }
 
-  if (!pageText) return { auditions: 0, deactivated: false };
-
-  if (PAGE_NOT_FOUND_RE.test(pageText.slice(0, 2_000))) {
-    const deactivated = await deactivateTheater(theater, `Page content matches "page not found" pattern`, openIssues);
-    return { auditions: 0, deactivated };
-  }
-
-  const auditions = await parseAuditions(pageText, theater.name);
-
-  // A page listing only past auditions is dormant, not broken. This used to
-  // deactivate the theater against a hardcoded 2025-01-01 dateline, which was
-  // wrong three ways: the wall never moved, so what counted as "stale" drifted
-  // further from the truth every month; a correct URL got reported as a broken
-  // page; and worst, deactivating cost us the theater's next season, because a
-  // deactivated theater is never scraped again and so the call we were waiting
-  // for could never be picked up.
-  //
-  // Deactivation is now reserved for pages we genuinely cannot read (404,
-  // soft-404). Old rows are still stored and still truthful: the app derives
-  // freshness from the date columns (lib/expiry.ts), so they land on /past and
-  // never surface as current.
-  const datedAuditions = auditions.filter((a) => a.audition_date_start != null);
-  const today = new Date().toISOString().split('T')[0];
-  if (datedAuditions.length > 0 && datedAuditions.every((a) => a.audition_date_start! < today)) {
-    const latest = datedAuditions.reduce((a, b) => (a.audition_date_start! > b.audition_date_start! ? a : b));
-    console.log(`  → Dormant: every parsed audition date has passed (latest: ${latest.audition_date_start})`);
-  }
-
-  // Replace this theater's auditions with fresh data from this scrape run
-  await supabase.from('auditions').delete().eq('theater_id', theater.id);
-
-  if (auditions.length === 0) {
-    console.log(`  → No current auditions`);
-    return { auditions: 0, deactivated: false };
-  }
-
-  const rows = auditions.map((a) => ({
-    ...a,
-    theater_id: theater.id,
-    source_url: theater.audition_page_url,
-    scraped_at: new Date().toISOString(),
-  }));
-
-  const { error } = await supabase.from('auditions').insert(rows);
-  if (error) {
-    console.log(`  → DB insert error: ${error.message}`);
-    return { auditions: 0, deactivated: false };
-  }
-
-  console.log(`  → ${auditions.length} audition(s) saved`);
-  return { auditions: auditions.length, deactivated: false };
+  return { requests, fetchFailed, deactivated };
 }
 
 async function main() {
@@ -127,6 +155,8 @@ async function main() {
 
   const openIssues = await fetchOpenScraperIssueTitles();
   console.log(`Loaded ${openIssues.size} open scraper issue(s) from GitHub\n`);
+
+  await resolveOwedBatches();
 
   // File issues for active theaters with no audition URL configured
   const { data: noUrl } = await supabase
@@ -153,43 +183,43 @@ async function main() {
     console.log();
   }
 
-  console.log(`Scraping ${theaters.length} theaters...\n`);
+  console.log(`Fetching ${theaters.length} theater pages...\n`);
+  const { requests, fetchFailed, deactivated } = await fetchAll(theaters as Theater[], openIssues);
 
-  let totalAuditions = 0;
-  let errorCount = 0;
-  let deactivatedCount = 0;
-
-  for (let i = 0; i < theaters.length; i++) {
-    const theater = theaters[i] as Theater;
-    console.log(`[${i + 1}/${theaters.length}] ${theater.name}`);
-
-    // An open issue used to skip the theater entirely. That was redundant --
-    // a genuinely broken theater is already is_active = false and never
-    // reaches this loop -- and it quietly froze every theater someone
-    // re-activated to retry: the open issue kept it from ever being scraped
-    // again, so the issue itself became the thing keeping it broken.
-    // Duplicate issues are already prevented inside deactivateTheater.
-    if (openIssues.has(`Broken page: ${theater.name}`)) {
-      console.log(`  → Has an open tracker issue; re-trying it anyway`);
-    }
-
-    try {
-      const result = await scrapeTheater(theater, openIssues);
-      totalAuditions += result.auditions;
-      if (result.deactivated) deactivatedCount++;
-    } catch (err) {
-      console.log(`  → Unexpected error: ${err}`);
-      errorCount++;
-    }
-
-    if (i < theaters.length - 1) await sleep(DELAY_MS);
+  if (requests.length === 0) {
+    console.log(`\nNo readable pages to parse; nothing to submit.`);
+    return;
   }
+
+  console.log(`\nSubmitting ${requests.length} page(s) as one batch...`);
+  const batchId = await submitBatch(supabase, requests);
+  console.log(`Batch ${batchId} submitted. Waiting for results.\n`);
+
+  const ended = await pollUntilEnded(batchId);
+
+  if (!ended) {
+    // Not a failure. The batch is recorded as pending, the next run resolves
+    // it, and today's listings stay as they were rather than half-written.
+    console.log(`\n--- Batch still processing ---`);
+    console.log(`Left pending; tomorrow's run will collect it before submitting.`);
+    console.log(`Theaters:    ${theaters.length}`);
+    console.log(`Queued:      ${requests.length}`);
+    console.log(`Fetch fails: ${fetchFailed}`);
+    console.log(`Deactivated: ${deactivated}`);
+    return;
+  }
+
+  console.log(`\nCollecting results...\n`);
+  const summary = await collectBatch(supabase, batchId);
 
   console.log(`\n--- Done ---`);
   console.log(`Theaters:    ${theaters.length}`);
-  console.log(`Auditions:   ${totalAuditions}`);
-  console.log(`Deactivated: ${deactivatedCount}`);
-  console.log(`Errors:      ${errorCount}`);
+  console.log(`Queued:      ${requests.length}`);
+  console.log(`Fetch fails: ${fetchFailed}`);
+  console.log(`Deactivated: ${deactivated}`);
+  console.log(`Auditions:   ${summary.auditions} across ${summary.theatersWritten} theater(s)`);
+  console.log(`Failed:      ${summary.failed}`);
+  console.log(`Skipped:     ${summary.skipped}`);
 }
 
 main();

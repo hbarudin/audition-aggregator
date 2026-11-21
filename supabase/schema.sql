@@ -67,3 +67,47 @@ create policy "public read auditions" on auditions for select using (true);
 -- live database until 2026-10-20: deactivation writes failed silently for
 -- months because the error was discarded. auditions already had it.
 grant update on table theaters to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Added 2026-11-08 with the move to the Message Batches API.
+-- Runnable slice for an existing database: migration-2026-11-08-scrape-batches.sql
+--
+-- The daily scrape no longer gets its answers inside the run that asks the
+-- questions: it submits one batch of ~325 requests and collects the results
+-- when they are ready, usually within the hour but by contract up to 24 hours
+-- later. This table is the handoff. Without it a run that submits a batch and
+-- then times out waiting has paid for work it can never find again, and the
+-- site keeps yesterday's listings with nothing to say why.
+--
+-- outcome is the whole point. A 'pending' row is a batch the next run still
+-- owes something, and resolving those is the first thing it does -- before it
+-- submits anything new, so a slow batch can never land on top of fresher
+-- data. At most one batch is ever in flight: a run that finds one still
+-- processing cancels it ('cancelled') rather than racing it, because the
+-- pages it is about to fetch are newer than the ones that batch was built
+-- from.
+create table scrape_batches (
+  id            text primary key,     -- Anthropic's batch id (msgbatch_...)
+  submitted_at  timestamptz not null default now(),
+  request_count integer not null,
+
+  outcome       text not null default 'pending'
+                check (outcome in ('pending', 'collected', 'cancelled')),
+  resolved_at   timestamptz,
+
+  -- Per-theater tallies from the collect pass, for the run log.
+  succeeded     integer,
+  failed        integer,
+  skipped       integer
+);
+
+create index scrape_batches_pending_idx on scrape_batches(submitted_at)
+  where outcome = 'pending';
+
+-- Internal bookkeeping, unlike theaters and auditions: RLS on with no public
+-- policy, so anon cannot read it at all. service_role bypasses RLS but still
+-- needs the table grants -- the theaters grant above is the cautionary tale,
+-- a missing grant that failed silently for months.
+alter table scrape_batches enable row level security;
+
+grant select, insert, update on table scrape_batches to service_role;

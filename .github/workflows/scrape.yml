@@ -19,6 +19,15 @@ jobs:
   scrape:
     runs-on: ubuntu-latest  # free Linux VM provided by GitHub
 
+    # The parse step goes through the Message Batches API (half price), so the
+    # job spends most of its life waiting on results rather than working:
+    # roughly 6 minutes fetching pages, then up to 90 minutes polling. 150
+    # caps a hung run well short of the 6-hour default. Running out is not a
+    # failure -- the batch is recorded as pending and tomorrow's run collects
+    # it before submitting anything new. Actions minutes are free on public
+    # repos, so the waiting costs nothing.
+    timeout-minutes: 150
+
     # "permissions" scopes the automatic GITHUB_TOKEN for this job. This repo's
     # default is read-only, so the scraper's "Broken page" issues were failing
     # to file on every scheduled run. Issues: write is the only scope it needs.

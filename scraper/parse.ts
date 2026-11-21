@@ -28,13 +28,28 @@ export interface ParsedAudition {
   is_expired: boolean;
 }
 
-export async function parseAuditions(
+/**
+ * The exact request body for one page, shared by both callers: the immediate
+ * path (parseAuditions, used by the repair tooling) and the batched path the
+ * daily scrape submits. Keeping it in one function is the only thing stopping
+ * the two from drifting -- a prompt change that reached one and not the other
+ * would silently give the nightly run and the repair scripts different
+ * extraction behaviour, and nothing would fail to announce it.
+ *
+ * Note on dates: today is baked in at build time, which for a batch is submit
+ * time rather than collect time. A batch collected the next morning therefore
+ * evaluated is_expired against the previous day. That is harmless -- the app
+ * derives freshness from the date columns, never from is_expired (see the
+ * column comment in supabase/schema.sql) -- but it is why is_expired must stay
+ * a snapshot and not become load-bearing.
+ */
+export function buildParseRequest(
   pageText: string,
   theaterName: string
-): Promise<ParsedAudition[]> {
+): Anthropic.MessageCreateParamsNonStreaming {
   const today = new Date().toISOString().split('T')[0];
 
-  const response = await getParseClient().messages.create({
+  return {
     model: PARSE_MODEL,
     max_tokens: MAX_TOKENS,
     // Instructions are in the system prompt, scraped content is in the user turn.
@@ -84,13 +99,24 @@ ${pageText}
 [/CONTENT]`,
       },
     ],
-  });
+  };
+}
 
-  if (response.stop_reason === 'max_tokens') {
-    console.log(`  → Response hit the ${MAX_TOKENS}-token ceiling; truncated JSON will drop every listing on this page`);
+/**
+ * Pull the validated rows out of a model response. Takes the response rather
+ * than a page so the batched path, which only ever sees stored results, can
+ * use the identical extraction.
+ */
+export function extractAuditions(
+  content: Anthropic.ContentBlock[],
+  stopReason: string | null,
+  label: string
+): ParsedAudition[] {
+  if (stopReason === 'max_tokens') {
+    console.log(`  → ${label}: response hit the ${MAX_TOKENS}-token ceiling; truncated JSON will drop every listing on this page`);
   }
 
-  const raw = response.content[0].type === 'text' ? response.content[0].text : '';
+  const raw = content[0]?.type === 'text' ? content[0].text : '';
 
   try {
     // Extract the JSON object even if there's any surrounding text
@@ -104,9 +130,26 @@ ${pageText}
       .map(validateAudition)
       .filter((a): a is ParsedAudition => a !== null);
   } catch {
-    console.log(`  → LLM returned invalid JSON`);
+    console.log(`  → ${label}: LLM returned invalid JSON`);
     return [];
   }
+}
+
+/**
+ * Parse one page immediately. The repair tooling (scripts/repair/*) and
+ * scripts/test-scraper.ts use this: they are interactive, work a handful of
+ * pages at a time, and need an answer now, so the 50% batch discount is not
+ * worth a polling loop to them. The daily scrape goes through scraper/batch.ts
+ * instead.
+ */
+export async function parseAuditions(
+  pageText: string,
+  theaterName: string
+): Promise<ParsedAudition[]> {
+  const response = await getParseClient().messages.create(
+    buildParseRequest(pageText, theaterName)
+  );
+  return extractAuditions(response.content, response.stop_reason, theaterName);
 }
 
 // Validates and coerces LLM output — never trust raw LLM fields directly.
