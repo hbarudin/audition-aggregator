@@ -84,7 +84,12 @@ async function main() {
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
       audition_page_url: r.audition_page_url,
-      notes: `NJACT ${r.njact} member. Added from ${file} on 2026-11-14.`,
+      // The note has to come from the sheet, not from this file. Hardcoding
+      // "NJACT member" and the 2026-11-14 date wrote both into a Pennsylvania
+      // batch that was neither, and the njact column was empty for every row.
+      notes: [r.note, `Added from ${file} on ${new Date().toISOString().slice(0, 10)}.`]
+        .filter(Boolean)
+        .join(' '),
       is_active: true,
     });
   }
