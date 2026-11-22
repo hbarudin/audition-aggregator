@@ -26,6 +26,13 @@ interface Props {
   distances?: Map<string, number>;
   distanceSort?: 'asc' | 'desc';
   onSortByDistance?: () => void;
+  /**
+   * Called when a column header is clicked, so the client-side distance sort
+   * can stand down and let the URL's sort govern again. The navigation alone
+   * cannot say it: clicking the column the URL already names asc produces the
+   * same URL and no navigation at all.
+   */
+  onSortByColumn?: () => void;
 }
 
 /**
@@ -50,8 +57,13 @@ export default function AuditionTable({
   distances,
   distanceSort,
   onSortByDistance,
+  onSortByColumn,
 }: Props) {
   const showDistance = distances !== undefined;
+  // Only one sort can be in force, so while distance holds it the column
+  // headers read as unsorted -- a second lit-up arrow is how this looked
+  // broken in the first place.
+  const activeColumn = showDistance && distanceSort ? '' : sort;
 
   return (
     <>
@@ -59,12 +71,13 @@ export default function AuditionTable({
           becomes a card and the headers become a row of sort chips. */}
       <div className="md:hidden">
         <MobileSort
-          sort={sort}
+          sort={activeColumn}
           direction={direction}
           basePath={basePath}
           showDistance={showDistance}
           distanceSort={distanceSort}
           onSortByDistance={onSortByDistance}
+          onSortByColumn={onSortByColumn}
         />
         <div className="space-y-3">
           {auditions.map((a) => (
@@ -97,25 +110,25 @@ export default function AuditionTable({
             </colgroup>
             <TableHeader className="bg-muted">
               <TableRow className="border-b border-border hover:bg-muted">
-                <SortableHead column="theater_name" sort={sort} direction={direction} basePath={basePath}>
+                <SortableHead column="theater_name" sort={activeColumn} direction={direction} basePath={basePath} onClick={onSortByColumn}>
                   Theater
                 </SortableHead>
-                <SortableHead column="show_name" sort={sort} direction={direction} basePath={basePath}>
+                <SortableHead column="show_name" sort={activeColumn} direction={direction} basePath={basePath} onClick={onSortByColumn}>
                   Show
                 </SortableHead>
-                <SortableHead column="audition_dates" sort={sort} direction={direction} basePath={basePath}>
+                <SortableHead column="audition_dates" sort={activeColumn} direction={direction} basePath={basePath} onClick={onSortByColumn}>
                   Audition dates
                 </SortableHead>
                 {showDistance && (
                   <DistanceHead direction={distanceSort} onClick={onSortByDistance} />
                 )}
-                <SortableHead column="is_paid" sort={sort} direction={direction} basePath={basePath} center>
+                <SortableHead column="is_paid" sort={activeColumn} direction={direction} basePath={basePath} onClick={onSortByColumn} center>
                   Paid
                 </SortableHead>
-                <SortableHead column="non_union_ok" sort={sort} direction={direction} basePath={basePath} center>
+                <SortableHead column="non_union_ok" sort={activeColumn} direction={direction} basePath={basePath} onClick={onSortByColumn} center>
                   Non-union OK
                 </SortableHead>
-                <SortableHead column="housing" sort={sort} direction={direction} basePath={basePath} center>
+                <SortableHead column="housing" sort={activeColumn} direction={direction} basePath={basePath} onClick={onSortByColumn} center>
                   Housing
                 </SortableHead>
               </TableRow>
@@ -189,6 +202,7 @@ function MobileSort({
   showDistance,
   distanceSort,
   onSortByDistance,
+  onSortByColumn,
 }: {
   sort: string;
   direction: string;
@@ -196,6 +210,7 @@ function MobileSort({
   showDistance: boolean;
   distanceSort?: 'asc' | 'desc';
   onSortByDistance?: () => void;
+  onSortByColumn?: () => void;
 }) {
   const chip = (active: boolean) =>
     `inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
@@ -210,14 +225,21 @@ function MobileSort({
       {showDistance && (
         <button type="button" onClick={onSortByDistance} className={chip(Boolean(distanceSort))}>
           Distance
-          <span className="text-[10px]">{distanceSort === 'desc' ? '↓' : '↑'}</span>
+          <span className="text-[10px]">
+            {distanceSort ? (distanceSort === 'asc' ? '↑' : '↓') : '↕'}
+          </span>
         </button>
       )}
       {COLUMNS.map(({ column, short }) => {
         const isActive = sort === column;
         const nextDir = isActive && direction === 'asc' ? 'desc' : 'asc';
         return (
-          <Link key={column} href={`${basePath}?sort=${column}&dir=${nextDir}`} className={chip(isActive)}>
+          <Link
+            key={column}
+            href={`${basePath}?sort=${column}&dir=${nextDir}`}
+            onClick={onSortByColumn}
+            className={chip(isActive)}
+          >
             {short}
             <span className="text-[10px]">
               {isActive ? (direction === 'asc' ? '↑' : '↓') : '↕'}
@@ -235,6 +257,7 @@ function SortableHead({
   sort,
   direction,
   basePath,
+  onClick,
   center,
 }: {
   children: React.ReactNode;
@@ -242,6 +265,7 @@ function SortableHead({
   sort: string;
   direction: string;
   basePath: string;
+  onClick?: () => void;
   center?: boolean;
 }) {
   const isActive = sort === column;
@@ -252,6 +276,7 @@ function SortableHead({
     <TableHead className={`p-0 ${center ? 'text-center' : ''}`}>
       <Link
         href={href}
+        onClick={onClick}
         className={`flex items-center gap-1 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-colors ${
           center ? 'justify-center' : ''
         } ${isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/75'}`}

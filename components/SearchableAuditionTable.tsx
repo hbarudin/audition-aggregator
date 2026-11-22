@@ -42,7 +42,9 @@ export default function SearchableAuditionTable({ auditions, sort, direction, ba
 
   const [locationInput, setLocationInput] = useState('');
   const [radius, setRadius] = useState(50);
-  const [distanceSort, setDistanceSort] = useState<'asc' | 'desc'>('asc');
+  // Null means the reader is sorting by a column instead: the two cannot both
+  // govern, and whichever was touched last wins.
+  const [distanceSort, setDistanceSort] = useState<'asc' | 'desc' | null>('asc');
   // The query that produced the result is stored alongside it, so the state of
   // the lookup can be read off the current input rather than tracked in a
   // second state that could disagree with it.
@@ -154,9 +156,10 @@ export default function SearchableAuditionTable({ auditions, sort, direction, ba
     ? withoutRadius.filter((a) => !distances.has(a.id)).length
     : 0;
 
-  // Overrides the server's ordering while a location is set, which is the
-  // point: the column headers sort through the URL, and a navigation would
-  // throw the location away before it could be used.
+  // Overrides the server's ordering, which is the point: the column headers
+  // sort through the URL, and the distances only exist in the browser. It is
+  // an override, though, so it has to stand down when a column header is
+  // clicked -- otherwise the URL says "by date" and the rows say otherwise.
   const ordered =
     distances && distanceSort
       ? [...filtered].sort((a, b) => {
@@ -317,10 +320,11 @@ export default function SearchableAuditionTable({ auditions, sort, direction, ba
             basePath={basePath}
             query={debouncedQuery}
             distances={distances ?? undefined}
-            distanceSort={distanceSort}
+            distanceSort={distanceSort ?? undefined}
             onSortByDistance={() =>
               setDistanceSort((previous) => (previous === 'asc' ? 'desc' : 'asc'))
             }
+            onSortByColumn={() => setDistanceSort(null)}
           />
         </>
       )}
